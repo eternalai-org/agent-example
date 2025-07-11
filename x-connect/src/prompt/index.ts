@@ -28,9 +28,10 @@ export const sendPrompt = async (
             username: '',
             fullName: '',
             personality: '',
+            verified: false,
         };
         try {
-            const res: AxiosResponse<{ result: { username: string, name: string } }> = await axios.get(formatDataUrlPath('api/xconnect/auth'), {
+            const res: AxiosResponse<{ result: { username: string, name: string, verified: boolean } }> = await axios.get(formatDataUrlPath('api/xconnect/auth'), {
                 headers: {
                     'api-key': apiKey,
                 },
@@ -38,6 +39,12 @@ export const sendPrompt = async (
             authRes.username = res.data.result.username;
             authRes.fullName = res.data.result.name;
         } catch (error) {
+        }
+        var maxChar = 0;
+        if (authRes.verified) {
+            maxChar = 4000;
+        } else {
+            maxChar = 280;
         }
         authRes.personality = (request.env && request.env.X_USER_PERSONALITY) ? request.env.X_USER_PERSONALITY : (process.env.X_USER_PERSONALITY || '');
         const params = {
@@ -65,7 +72,7 @@ You are a Twitter assistant designed to help the user interact with Twitter (X) 
 3. **Posting Tweets:**
    - When posting a tweet, use the postTweet tool with the provided content.
    - Ensure the tweet reflects the user's personality in tone and style.
-   - Keep tweets within Twitter's character limit (280 characters) unless otherwise specified.
+   - Keep tweets within Twitter's character limit (${maxChar} characters) unless otherwise specified.
 
 4. **Searching Tweets:**
    - Use the searchTopic tool to search for tweets by topic or keyword when requested. This tool does not require authorization.
@@ -87,7 +94,7 @@ You are a Twitter assistant designed to help the user interact with Twitter (X) 
 
 **Example Workflow for Posting a Tweet:**
 1. Receive the tweet content from the user.
-2. Adapt the content to reflect user's personality and ensure it fits within 280 characters.
+2. Adapt the content to reflect user's personality and ensure it fits within ${maxChar} characters.
 3. Use postTweet to share the tweet.
 
 **Important Notes:**
