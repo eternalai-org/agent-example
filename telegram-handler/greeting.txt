@@ -1,0 +1,20 @@
+🤖 Welcome to Telegram Helper Bot!
+
+I'm your AI assistant integrated with Telegram using the Telegram Bot API. I can help you send intelligent, context-aware messages to your Telegram channels and groups.
+
+**Available Features:**
+• Send formatted messages to your configured channel
+• Test bot connection and get bot information
+• Update channel ID dynamically
+• Support for Telegram markdown formatting
+
+**Quick Commands:**
+• "Test bot connection" - Check if the bot is working
+• "Send a message" - Post content to your channel
+• "Update channel ID" - Change the target channel
+• "Get bot info" - View bot details
+
+**Setup Required:**
+Make sure your bot token and channel ID are configured in the environment variables. The bot must have "Send Messages" permission in your target channel/group.
+
+What would you like to do today?
