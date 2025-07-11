@@ -27,35 +27,91 @@ LLM_MODEL_ID=gpt-4o-mini
 
 # Server Configuration
 PORT=3000
-DATA_BACKEND_URL=http://localhost:8480
 ```
 
 ### 2. Getting Your Bot Token
 
-1. Create a new bot with [@BotFather](https://t.me/botfather) on Telegram
-2. Get your bot token from BotFather
-3. Add the token to your `.env` file
+#### Step-by-Step Guide:
+
+1. **Open Telegram** and search for `@BotFather`
+2. **Start a chat** with BotFather by clicking "Start"
+3. **Create a new bot** by sending the command: `/newbot`
+4. **Choose a name** for your bot (e.g., "My Helper Bot")
+5. **Choose a username** for your bot (must end with 'bot', e.g., "my_helper_bot")
+6. **Copy the bot token** that BotFather sends you - it looks like: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`
+7. **Add the token** to your `.env` file as `TELEGRAM_BOT_TOKEN`
+
+**Important Notes:**
+- Keep your bot token secret and never share it publicly
+- If you lose your token, you can get a new one by sending `/mybots` to BotFather, selecting your bot, and choosing "API Token"
+- The token format is: `bot_id:bot_token`
 
 ### 3. Getting Your Channel/Group ID
 
-#### Method 1: Using @userinfobot
-1. Search for `@userinfobot` on Telegram
-2. Start a chat with it
-3. Add it to your group or channel
-4. Send a message in the group/channel
-5. Go back to @userinfobot - it will show your Chat ID
+#### Method 1: Using @userinfobot (Recommended)
 
-#### Method 2: Using Your Bot
-1. Add your bot to your group or channel
-2. Grant it "Send Messages" permission
-3. Send any message in the group/channel
-4. Check your bot's webhook or logs for the chat ID
+1. **Search for `@userinfobot`** on Telegram
+2. **Start a chat** with @userinfobot by clicking "Start"
+3. **Add @userinfobot to your group/channel**:
+   - For groups: Go to group settings → Add members → Search "@userinfobot"
+   - For channels: Go to channel settings → Administrators → Add admin → Search "@userinfobot"
+4. **Send any message** in your group/channel
+5. **Go back to @userinfobot** - it will show you the Chat ID
+6. **Copy the Chat ID** (it will be a number like `-1001234567890` for channels or `-123456789` for groups)
+
+#### Method 2: Using Your Bot (Alternative)
+
+1. **Add your bot to your group/channel**:
+   - For groups: Go to group settings → Add members → Search your bot's username
+   - For channels: Go to channel settings → Administrators → Add admin → Search your bot's username
+2. **Grant necessary permissions** to your bot:
+   - Send Messages
+   - Read Messages (if needed)
+3. **Send any message** in your group/channel
+4. **Check your bot's logs** or use the Telegram API to get the chat ID
+
+#### Method 3: Using Telegram Web (For Personal Chats)
+
+1. **Open Telegram Web** in your browser
+2. **Open the chat** you want to get the ID for
+3. **Look at the URL** - it will show something like: `https://web.telegram.org/k/#-1001234567890`
+4. **The number after #** is your Chat ID
+
+#### Chat ID Format Reference:
+
+- **Personal chats**: Positive numbers (e.g., `123456789`)
+- **Groups**: Negative numbers starting with `-` (e.g., `-123456789`)
+- **Channels**: Negative numbers starting with `-100` (e.g., `-1001234567890`)
+- **Supergroups**: Negative numbers starting with `-100` (e.g., `-1001234567890`)
+
+#### Method 4: Using Telegram API Directly
+
+If you have programming experience, you can also get the chat ID by:
+
+1. **Send a message** to your bot from the group/channel
+2. **Use the Telegram API** to get updates: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
+3. **Look for the `chat` object** in the response, which contains the `id` field
 
 ### 4. Bot Permissions
 
 Make sure your bot has the following permissions in your channel/group:
+
+**For Groups:**
 - Send Messages
 - Read Messages (if needed)
+- Add to group (if you want the bot to be able to add itself)
+
+**For Channels:**
+- Send Messages
+- Post Messages
+- Edit Messages (optional)
+- Delete Messages (optional)
+
+**Setting Permissions:**
+1. Go to your group/channel settings
+2. Select "Administrators" or "Permissions"
+3. Find your bot in the list
+4. Enable the required permissions
 
 ## Usage
 
@@ -126,9 +182,6 @@ Get the current bot token configuration.
 
 ### getChannelID
 Get the current channel ID configuration.
-
-### updateChannelID
-Update the channel ID dynamically.
 
 **Parameters:**
 - `channel_id` (string): The new channel ID to set
