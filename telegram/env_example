@@ -1,2 +1,2 @@
-TELEGRAM_BOT_TOKEN=Bot Token | Your telegram bot token
-TELEGRAM_CHANNEL_ID=Chat ID | Teletegram channel id
+TELEGRAM_BOT_TOKEN=Telegram Bot Token | Refer to the URL `https://core.telegram.org/bots/features#botfather` to create a Bot Token.
+TELEGRAM_CHANNEL_ID=Telegram Chat ID | Enter your Telegram channel or chat ID.

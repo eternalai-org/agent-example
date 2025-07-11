@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { sendPrompt } from "./prompt";
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import readline from 'readline';
 
 // Create readline interface
@@ -10,7 +9,7 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-var messages: ChatCompletionMessageParam[] = [];
+var messages: any[] = [];
 
 // Function to prompt user in a loop
 function promptUser() {

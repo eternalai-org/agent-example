@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { sendPrompt } from "./prompt";
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import readline from 'readline';
 import { CoreMessage, generateText, streamText } from 'ai';
 

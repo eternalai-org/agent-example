@@ -1,7 +1,6 @@
-import { PromptPayload } from "agent-server-definition";
 import { logger } from '../utils/logger';
 import { createOpenAI } from '@ai-sdk/openai';
-import { CoreMessage, generateText, streamText } from 'ai';
+import { generateText, streamText } from 'ai';
 import { z } from "zod";
 import axios, { AxiosResponse } from "axios";
 
@@ -18,7 +17,7 @@ const formatDataUrlPath = (path: string) => {
 export const sendPrompt = async (
     request: {
         env: any,
-        messages: CoreMessage[],
+        messages: any[],
         stream: boolean,
     }
 ): Promise<any> => {
@@ -223,7 +222,7 @@ Proceed with the user's request, using the above guidelines to deliver a seamles
                     },
                 },
             },
-            messages: request.messages as CoreMessage[],
+            messages: request.messages,
             onError: (error: any) => {
                 logger.error('Error sending prompt:', error);
             }
