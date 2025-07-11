@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { sendPrompt } from "./prompt";
 import readline from 'readline';
+import { CoreMessage, generateText, streamText } from 'ai';
 
 // Create readline interface
 const rl = readline.createInterface({
@@ -9,7 +10,7 @@ const rl = readline.createInterface({
     output: process.stdout
 });
 
-var messages: any[] = [];
+var messages: CoreMessage[] = [];
 
 // Function to prompt user in a loop
 function promptUser() {
