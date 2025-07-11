@@ -11,6 +11,8 @@ A Node.js application that provides an AI assistant integrated with Telegram usi
 
 ## Setup
 
+> **📚 Additional Resources**: For more detailed step-by-step instructions on getting bot tokens and chat IDs, check out this comprehensive guide: [How to get Telegram Bot Chat ID](https://gist.github.com/nafiesl/4ad622f344cd1dc3bb1ecbe468ff9f8a?utm_source=chatgpt.com)
+
 ### 1. Environment Configuration
 
 Create a `.env` file with the following variables:
