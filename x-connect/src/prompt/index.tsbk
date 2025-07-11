@@ -1,0 +1,277 @@
+import { PromptPayload } from "agent-server-definition";
+import { logger } from '../utils/logger';
+import { createOpenAI } from '@ai-sdk/openai';
+import { CoreMessage, generateText, streamText } from 'ai';
+import { z } from "zod";
+import axios, { AxiosResponse } from "axios";
+
+const clientOpenAI = createOpenAI({
+    name: process.env.LLM_MODEL_ID || 'gpt-4o-mini',
+    baseURL: process.env.LLM_BASE_URL,
+    apiKey: process.env.LLM_API_KEY || 'no-need',
+});
+
+const formatDataUrlPath = (path: string) => {
+    return `${process.env.DATA_BACKEND_URL}/${path}`;
+}
+
+export const sendPrompt = async (bearerToken: string, request: PromptPayload): Promise<any> => {
+    // bearerToken = bearerToken.replace('bearer', 'Bearer');
+    const identityToken = process.env.IDENTITY_TOKEN || '';
+    try {
+        const params = {
+            model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
+            maxSteps: 25,
+            system: `
+        You are twitter assistant for helping the user to interact with twitter.
+        You can check if the user is authorized to use the twitter tool, ask the user to get the authorization url and personality from the twitter tool, and get the mentions of the user.
+        Ask the user to update the personality if the user don't have any personality when user want to reply to the tweet.
+        You can also get the mentions of the user.
+        You can also reply to the tweet with the given reply.
+
+        Important:
+        - Get list personality shoule be show $id, $name and $personality
+        - getPersonalityDetailById should be get id from getListPersonality, the id is the id of the personality data that the user specified
+        - should be use the personality for reply to the tweet, if user don't have any personality, ask the user to update the personality
+        - make sure user is authorized to use the twitter tool before use the twitter tool
+        - if user specify the id of the personality data, the personality should be fully filled with the content that get from function getPersonalityDetailById
+        - should be use the current personality for reply to the tweet in Twitter, not for reply in conversation with assistant, the current personality is get from function checkAndAskForAuthorizationUrl
+        - should be use the tweet detail to get the full conversation of the tweet before reply, the tweet detail is get from function getTweetDetailById
+        - getTwitterTweetsMentions should be show tweet id for each tweet, the tweet id is use for replyToTweet
+        - should be use the current personality for post tweet, not for reply in conversation with assistant, the current personality is get from function checkAndAskForAuthorizationUrl
+        - Tools that don't need authorization: searchTopic
+        `,
+            tools: {
+                checkAndAskForAuthorizationUrl: {
+                    description: `check and get the authorization url and personality from the twitter tool, if the user is not authorized, return false and ask the user to authorize the twitter tool with the given authorization url`,
+                    parameters: z.object({}),
+                    execute: async () => {
+                        console.log('execute checkAndAskForAuthorizationUrl');
+                        try {
+                            const authRes: AxiosResponse<{ result: { auth_url: string, username: string, personality: string } }> = await axios.get(formatDataUrlPath('api/twitter-helper/auth'), {
+                                headers: {
+                                    Authorization: identityToken,
+                                },
+                            });
+                            return {
+                                isAuthorized: authRes.data.result.username !== '',
+                                authorizationUrl: authRes.data.result.auth_url,
+                                isHasPersonality: authRes.data.result.personality !== '',
+                                personality: authRes.data.result.personality,
+                            };
+                        } catch (error) {
+                            logger.error('Error getting authorization url and personality:', error);
+                            return 'Error getting authorization url and personality: ' + error;
+                        }
+                    },
+                },
+                getListPersonality: {
+                    description: `get list personality for user to choose to update their personality`,
+                    parameters: z.object({}),
+                    execute: async () => {
+                        console.log('execute getListPersonality');
+                        try {
+                            const res: AxiosResponse<{ result: any[] }> = await axios.get(formatDataUrlPath('api/twitter-helper/personality/nfts?limit=50'), {
+                                headers: {
+                                    Authorization: identityToken,
+                                },
+                            });
+                            var resps: any[] = [];
+                            // random max 50 items from res.data.result
+                            for (let i = 0; i < 50; i++) {
+                                if (res.data.result.length > 0) {
+                                    const randomIndex = Math.floor(Math.random() * res.data.result.length);
+                                    resps.push(res.data.result[randomIndex]);
+                                    res.data.result.splice(randomIndex, 1);
+                                }
+                            }
+                            return resps;
+                        } catch (error) {
+                            logger.error('Error getting list personality:', error);
+                            return 'Error getting list personality: ' + error;
+                        }
+                    },
+                },
+                getPersonalityDetailById: {
+                    description: 'get the detail of the personality data by the id',
+                    parameters: z.object({
+                        id: z.string().describe('id of the personality data'),
+                    }),
+                    execute: async (args: { id: string }) => {
+                        console.log('execute getPersonalityDetailById', args);
+                        try {
+                            const res: AxiosResponse<{ result: string }> = await axios.get(
+                                formatDataUrlPath(`api/twitter-helper/personality/nft/${args.id}`),
+                                {
+                                    headers: {
+                                        Authorization: identityToken,
+                                    },
+                                }
+                            );
+                            return res.data.result;
+                        } catch (error) {
+                            logger.error('Error getting personality content:', error);
+                            return 'Error getting personality content: ' + error;
+                        }
+                    },
+                },
+                updatePersonality: {
+                    description: 'update the personality for user',
+                    parameters: z.object({
+                        personality: z.string(),
+                    }),
+                    execute: async (args: { personality: string }) => {
+                        console.log('execute updatePersonality', args);
+                        try {
+                            const res: AxiosResponse<{ result: string }> = await axios.post(
+                                formatDataUrlPath(`api/twitter-helper/personality/update`),
+                                {
+                                    personality: args.personality,
+                                },
+                                {
+                                    headers: {
+                                        Authorization: identityToken,
+                                    },
+                                });
+                            return res.data.result;
+                        } catch (error) {
+                            logger.error('Error updating personality:', error);
+                            return 'Error updating personality: ' + error;
+                        }
+                    },
+                },
+                getTwitterTweetsMentions: {
+                    description: 'get the mentions of the user, the mentions are the tweets that mention the user',
+                    parameters: z.object({}),
+                    execute: async () => {
+                        console.log('execute getTwitterTweetsMentions');
+                        try {
+                            const res: AxiosResponse<{ result: string }> = await axios.get(
+                                formatDataUrlPath(`api/twitter-helper/mentions`),
+                                {
+                                    headers: {
+                                        Authorization: identityToken,
+                                    },
+                                });
+                            return res.data.result;
+                        } catch (error) {
+                            logger.error('Error getting mentions:', error);
+                            return 'Error getting mentions: ' + error;
+                        }
+                    },
+                },
+                getTweetDetailById: {
+                    description: 'get the detail of the tweet by the id',
+                    parameters: z.object({
+                        id: z.string().describe('id of the tweet'),
+                    }),
+                    execute: async (args: { id: string }) => {
+                        console.log('execute getTweetDetailById', args);
+                        try {
+                            const res: AxiosResponse<{ result: any }> = await axios.get(
+                                formatDataUrlPath(`api/twitter-helper/tweet/detail/${args.id}`),
+                                {
+                                    headers: {
+                                        Authorization: identityToken,
+                                    },
+                                }
+                            );
+                            return res.data.result;
+                        } catch (error) {
+                            logger.error('Error getting tweet detail:', error);
+                            return 'Error getting tweet detail: ' + error;
+                        }
+                    },
+                },
+                replyToTweet: {
+                    description: 'reply to the tweet with the given reply, should be use the tweet detail to get the full conversation of the tweet',
+                    parameters: z.object({
+                        tweetId: z.string().describe('The id of the tweet to reply to'),
+                        reply: z.string().describe('The reply content to the tweet'),
+                    }),
+                    execute: async (args: { tweetId: string, reply: string }) => {
+                        console.log('execute replyToTweet', args);
+                        try {
+                            const res: AxiosResponse<{ result: string }> = await axios.post(
+                                formatDataUrlPath(`api/twitter-helper/tweet/reply`),
+                                {
+                                    reply_tweet_id: args.tweetId,
+                                    content: args.reply,
+                                },
+                                {
+                                    headers: {
+                                        Authorization: identityToken,
+                                    },
+                                });
+                            return res.data.result;
+                        } catch (error) {
+                            logger.error('Error replying to tweet:', error);
+                            return 'Error replying to tweet: ' + error;
+                        }
+                    },
+                },
+                postTweet: {
+                    description: 'post the tweet with the given content',
+                    parameters: z.object({
+                        content: z.string().describe('The content of the tweet'),
+                    }),
+                    execute: async (args: { content: string }) => {
+                        console.log('execute postTweet', args);
+                        try {
+                            const res: AxiosResponse<{ result: string }> = await axios.post(
+                                formatDataUrlPath(`api/twitter-helper/tweet/post`),
+                                {
+                                    content: args.content,
+                                },
+                                {
+                                    headers: {
+                                        Authorization: identityToken,
+                                    },
+                                });
+                            return res.data.result;
+                        } catch (error) {
+                            logger.error('Error replying to tweet:', error);
+                            return 'Error replying to tweet: ' + error;
+                        }
+                    },
+                },
+                searchTopic: {
+                    description: 'search tweets by topic or keyword',
+                    parameters: z.object({
+                        query: z.string().describe('The search query/topic to find tweets about'),
+                    }),
+                    execute: async (args: { query: string }) => {
+                        console.log('execute searchTopic', args);
+                        try {
+                            const res: AxiosResponse<{ result: any }> = await axios.get(
+                                formatDataUrlPath(`api/twitter-helper/search-topic?query=${encodeURIComponent(args.query)}`),
+                                {
+                                    headers: {
+                                        Authorization: identityToken,
+                                    },
+                                });
+                            return res.data.result;
+                        } catch (error) {
+                            logger.error('Error searching tweets:', error);
+                            return 'Error searching tweets: ' + error;
+                        }
+                    },
+                },
+            },
+            messages: request.messages as CoreMessage[],
+            onError: (error: any) => {
+                logger.error('Error sending prompt:', error);
+            }
+        }
+        if (request.stream) {
+            const { textStream } = streamText(params);
+            return textStream;
+        } else {
+            const { text } = await generateText(params);
+            return text;
+        }
+    } catch (error) {
+        logger.error('Error sending prompt:', error);
+        throw new Error('Failed to send prompt');
+    }
+}
