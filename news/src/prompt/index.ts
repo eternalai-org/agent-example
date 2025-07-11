@@ -1,7 +1,6 @@
-import { PromptPayload } from "agent-server-definition";
 import { logger } from '../utils/logger';
 import { createOpenAI } from '@ai-sdk/openai';
-import { CoreMessage, generateText, streamText } from 'ai';
+import { generateText, streamText } from 'ai';
 import { z } from "zod";
 import axios, { AxiosResponse } from "axios";
 
@@ -15,7 +14,7 @@ const formatDataUrlPath = (path: string) => {
     return `${process.env.DATA_BACKEND_URL}/${path}`;
 }
 
-export const sendPrompt = async (request: PromptPayload): Promise<any> => {
+export const sendPrompt = async (request: { messages: any[], stream: boolean }): Promise<any> => {
     try {
         const params = {
             model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
@@ -45,7 +44,7 @@ export const sendPrompt = async (request: PromptPayload): Promise<any> => {
                     },
                 },
             },
-            messages: request.messages as CoreMessage[],
+            messages: request.messages,
         }
         if (request.stream) {
             const { textStream } = streamText(params);
