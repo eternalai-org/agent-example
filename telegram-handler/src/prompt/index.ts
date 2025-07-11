@@ -126,8 +126,6 @@ export const sendPrompt = async (
         - getBotToken: Get the current bot token
         - getChannelID: Get the current channel ID
         - getChannelInfo: Get the current channel info
-        - updateChannelID: Update the channel ID dynamically
-        - updateBotToken: Update the bot token dynamically
         - postMessage: Send a message to the configured channel using Telegram Bot API
         `,
             tools: {
@@ -189,39 +187,6 @@ export const sendPrompt = async (
                         }
                     },
                 },
-                // updateChannelID: {
-                //     description: 'update the channel ID for the Telegram bot',
-                //     parameters: z.object({
-                //         channel_id: z.string().describe('The new channel ID to set'),
-                //     }),
-                //     execute: async (args: { channel_id: string }) => {
-                //         console.log('execute updateChannelID', args);
-                //         try {
-                //             // Update the environment variable (this will only persist for the current session)
-                //             channelId = args.channel_id;
-                //             return `Channel ID updated successfully to: ${args.channel_id}`;
-                //         } catch (error) {
-                //             logger.error('Error updating channel ID:', error);
-                //             return 'Error updating channel ID: ' + (error instanceof Error ? error.message : String(error));
-                //         }
-                //     },
-                // },
-                // updateBotToken: {
-                //     description: 'update the bot token for the Telegram bot',
-                //     parameters: z.object({
-                //         bot_token: z.string().describe('The new bot token to set'),
-                //     }),
-                //     execute: async (args: { bot_token: string }) => {
-                //         console.log('execute updateBotToken', args);
-                //         try {
-                //             process.env.TELEGRAM_BOT_TOKEN = args.bot_token;
-                //             return `Bot token updated successfully to: ${args.bot_token}`;
-                //         } catch (error) {
-                //             logger.error('Error updating bot token:', error);
-                //             return 'Error updating bot token: ' + (error instanceof Error ? error.message : String(error));
-                //         }
-                //     },
-                // },
                 postMessage: {
                     description: 'post the message with the given content',
                     parameters: z.object({
