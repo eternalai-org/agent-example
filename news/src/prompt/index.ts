@@ -25,13 +25,12 @@ export const sendPrompt = async (request: { messages: any[], stream: boolean }):
             Important:
             - just get news relate to crypto, blockchain, web3, ai
             - calculate engagement score =view count + 3 * like count + 2* reply count + 4* retweet count
-            - base on engagement  score  to get higlight news
+            - base on engagement score to get higlight news
+            - remove duplicate news keep highest engagement score
             - reponse should be full content of the news include link
             - get top 10 higlight news and reponse by format as sample ordered by posted at ascending:
              + "Do you have any more bold predictions, Peter? https://t.co/hFdONVb4E0"
              Link: https://x.com/grok_ai/status/1940876167755845865
-          
-             
            
         `,
             tools: {
