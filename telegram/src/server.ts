@@ -13,8 +13,12 @@ app.use(express.json());
 // Route for handling prompts
 app.post('/prompt', async (req: any, res: any) => {
     try {
-        const identitytoken = req.headers.identitytoken || req.headers.identity_token;
-        const textStream = await sendPrompt(identitytoken, req.body);
+        const identitytoken = req.body.identitytoken || req.body.identity_token;
+        const textStream = await sendPrompt(identitytoken, {
+            env: process.env,
+            messages: req.body.messages,
+            stream: req.body.stream,
+        });
         if (textStream instanceof ReadableStream) {
             process.stdout.write('Assistant said: ');
             for await (const delta of textStream) {
