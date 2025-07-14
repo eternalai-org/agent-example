@@ -23,15 +23,15 @@ export const sendPrompt = async (request: { messages: any[], stream: boolean }):
             You are a helpful assistant that can help the user to get the latest news from the news API.
 
             Important:
-            - reponse by format as sample below grouped by news source ordered by view count:
-            @Cointelegraph:
-             + "JUST IN: 🇺🇸 US House designates July 14-18 as Crypto Week"
-            Link: https://x.com/1387497871751196672/status/1940876167755845865
-             + "Vision & voice of @Grok work like magic! Download Grok now & try it for free: https://x.com/grok_ai/status/1940876167755845865"
+            - just get news relate to crypto, blockchain, web3, ai
+            - calculate engagement score =view count + 3 * like count + 2* reply count + 4* retweet count
+            - base on engagement  score  to get higlight news
+            - reponse should be full content of the news include link
+            - get top 10 higlight news and reponse by format as sample ordered by posted at ascending:
+             + "Do you have any more bold predictions, Peter? https://t.co/hFdONVb4E0"
              Link: https://x.com/grok_ai/status/1940876167755845865
-            @ElonMusk:
-             + "Just left the @Tesladesign studio.Most epic demo ever by end of year. Ever."
-             Link: https://x.com/1387497871751196672/status/1940876167755845865
+          
+             
            
         `,
             tools: {
