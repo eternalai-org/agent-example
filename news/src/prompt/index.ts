@@ -14,25 +14,19 @@ const formatDataUrlPath = (path: string) => {
     return `${process.env.DATA_BACKEND_URL}/${path}`;
 }
 
+export const getServerSystemPrompt = async () => {
+    const res: AxiosResponse<{ result: { system_prompt: string } }> = await axios.get(
+        `https://agent.api.eternalai.org/api/agent/app-config?network_id=${process.env.NETWORK_ID}&agent_name=news`,
+    );
+    return res.data.result.system_prompt;
+}
+
 export const sendPrompt = async (request: { messages: any[], stream: boolean }): Promise<any> => {
     try {
         const params = {
             model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
             maxSteps: 25,
-            system: `
-            You are a helpful assistant that can help the user to get the latest news from the news API.
-
-            Important:
-            - just get news relate to crypto, blockchain, web3, ai
-            - calculate engagement score =view count + 3 * like count + 2* reply count + 4* retweet count
-            - base on engagement score to get higlight news
-            - remove duplicate news keep highest engagement score
-            - reponse should be full content of the news include link
-            - get top 10 higlight news and reponse by format as sample ordered by posted at ascending:
-             + "Do you have any more bold predictions, Peter? https://t.co/hFdONVb4E0"
-             Link: https://x.com/grok_ai/status/1940876167755845865
-           
-        `,
+            system: await getServerSystemPrompt(),
             tools: {
                 getNews: {
                     description: `fetch the latest news from the news API`,
