@@ -14,6 +14,13 @@ const formatDataUrlPath = (path: string) => {
     return `${process.env.DATA_BACKEND_URL}/${path}`;
 }
 
+export const getServerSystemPrompt = async () => {
+    const res: AxiosResponse<{ result: { system_prompt: string } }> = await axios.get(
+        `https://agent.api.eternalai.org/api/agent/app-config?network_id=${process.env.NETWORK_ID}&agent_name=xconnect`,
+    );
+    return res.data.result.system_prompt;
+}
+
 export const sendPrompt = async (
     request: {
         env: any,
