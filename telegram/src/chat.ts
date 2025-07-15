@@ -14,6 +14,8 @@ var messages: CoreMessage[] = [];
 
 // Function to prompt user in a loop
 function promptUser() {
+    // TODO: read to key enter for input
+    
     rl.question('Enter something (type "exit" to quit): ', async (input: string) => {
         if (input === 'exit') {
             rl.close();

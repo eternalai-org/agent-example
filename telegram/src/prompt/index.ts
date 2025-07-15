@@ -48,8 +48,8 @@ export const sendPrompt = async (
 ): Promise<any> => {
 
     // Extract address from bearer token
-    const userAddress = extractAddressFromIdentityToken(identityToken);
-    console.log('Extracted user address from bearer token:', userAddress);
+    // const userAddress = extractAddressFromIdentityToken(identityToken);
+    // console.log('Extracted user address from bearer token:', userAddress);
     const botToken = (request.env && request.env.TELEGRAM_BOT_TOKEN) ? request.env.TELEGRAM_BOT_TOKEN : (process.env.TELEGRAM_BOT_TOKEN || '');
     const channelId = (request.env && request.env.TELEGRAM_CHANNEL_ID) ? request.env.TELEGRAM_CHANNEL_ID : (process.env.TELEGRAM_CHANNEL_ID || '');
     try {

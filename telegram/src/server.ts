@@ -15,9 +15,9 @@ app.post('/prompt', async (req: any, res: any) => {
     try {
         const identitytoken = req.body.identitytoken || req.body.identity_token;
         const textStream = await sendPrompt(identitytoken, {
-            env: process.env,
-            messages: req.body.messages,
-            stream: req.body.stream,
+            env: req.body.env || {},
+            messages: req.body.messages || [],
+            stream: req.body.stream || false,
         });
         if (textStream instanceof ReadableStream) {
             process.stdout.write('Assistant said: ');
