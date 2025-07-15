@@ -17,7 +17,7 @@ app.post('/prompt', async (req: any, res: any) => {
         const textStream = await sendPrompt(identitytoken, {
             env: req.body.env || {},
             messages: req.body.messages || [],
-            stream: req.body.stream || false,
+            stream: req.body.stream || true,
         });
         if (textStream instanceof ReadableStream) {
             process.stdout.write('Assistant said: ');
@@ -51,8 +51,19 @@ app.post('/prompt', async (req: any, res: any) => {
             res.status(200).json(message);
         }
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Failed to process prompt' });
+        const message = {
+            choices: [
+                {
+                    delta: {
+                        role: 'assistant',
+                        content: 'Something went wrong. Please try again.',
+                    },
+                },
+            ],
+        }
+        res.write(`data: ${JSON.stringify(message)}\n\n`);
+        res.write("data: [DONE]\n\n");
+        res.end();
     }
 });
 
