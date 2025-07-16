@@ -46,7 +46,23 @@ app.post('/prompt', async (req: any, res: any) => {
             res.status(200).json(message);
         }
     } catch (error) {
-        res.status(500).json({ error: 'Failed to process prompt' });
+        const message = {
+            choices: [
+                {
+                    delta: {
+                        role: 'assistant',
+                        content: 'Something went wrong. Please try again.',
+                    },
+                },
+            ],
+        }
+        if (req.body.stream) {
+            res.write(`data: ${JSON.stringify(message)}\n\n`);
+            res.write("data: [DONE]\n\n");
+            res.end();
+        } else {
+            res.status(200).json(message);
+        }
     }
 });
 
