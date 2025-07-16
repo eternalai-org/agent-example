@@ -165,8 +165,8 @@ Proceed with the user's request, using the above guidelines to deliver a seamles
                     }),
                     execute: async (args: { tweetId: string, contents: string[] }) => {
                         console.log('execute replyToTweet', args);
+                        var replyTweetId = args.tweetId
                         try {
-                            var replyTweetId = args.tweetId
                             for (const content of args.contents) {
                                 const res: AxiosResponse<{ result: string }> = await axios.post(
                                     formatDataUrlPath(`api/xconnect/tweet/reply`),
@@ -181,11 +181,13 @@ Proceed with the user's request, using the above guidelines to deliver a seamles
                                     });
                                 replyTweetId = res.data.result;
                             }
-                            return replyTweetId;
                         } catch (error) {
-                            logger.error('Error replying to tweet:', error);
-                            return 'Error replying to tweet: ' + error;
+                            if (replyTweetId == '') {
+                                logger.error('Error replying to tweet:', error);
+                                return 'Error replying to tweet: ' + error;
+                            }
                         }
+                        return replyTweetId;
                     },
                 },
                 postTweet: {
@@ -195,8 +197,8 @@ Proceed with the user's request, using the above guidelines to deliver a seamles
                     }),
                     execute: async (args: { contents: string[] }) => {
                         console.log('execute postTweet', args);
+                        var replyTweetId = ''
                         try {
-                            var replyTweetId = ''
                             for (const content of args.contents) {
                                 if (replyTweetId == '') {
                                     const res: AxiosResponse<{ result: string }> = await axios.post(
@@ -211,25 +213,30 @@ Proceed with the user's request, using the above guidelines to deliver a seamles
                                         });
                                     replyTweetId = res.data.result;
                                 } else {
-                                    const res: AxiosResponse<{ result: string }> = await axios.post(
-                                        formatDataUrlPath(`api/xconnect/tweet/reply`),
-                                        {
-                                            reply_tweet_id: replyTweetId,
-                                            content: content,
-                                        },
-                                        {
-                                            headers: {
-                                                'api-key': apiKey,
+                                    try {
+                                        const res: AxiosResponse<{ result: string }> = await axios.post(
+                                            formatDataUrlPath(`api/xconnect/tweet/reply`),
+                                            {
+                                                reply_tweet_id: replyTweetId,
+                                                content: content,
                                             },
-                                        });
-                                    replyTweetId = res.data.result;
+                                            {
+                                                headers: {
+                                                    'api-key': apiKey,
+                                                },
+                                            });
+                                        replyTweetId = res.data.result;
+                                    } catch (error) {
+                                    }
                                 }
                             }
-                            return replyTweetId;
                         } catch (error) {
-                            logger.error('Error replying to tweet:', error);
-                            return 'Error replying to tweet: ' + error;
+                            if (replyTweetId == '') {
+                                logger.error('Error replying to tweet:', error);
+                                return 'Error replying to tweet: ' + error;
+                            }
                         }
+                        return replyTweetId;
                     },
                 },
                 searchTopic: {
