@@ -3,6 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { generateText, streamText } from 'ai';
 import { z } from "zod";
 import axios, { AxiosResponse } from "axios";
+import Mustache from 'mustache';
 
 const clientOpenAI = createOpenAI({
     name: process.env.LLM_MODEL_ID || 'gpt-4o-mini',
@@ -14,56 +15,14 @@ const formatDataUrlPath = (path: string) => {
     return `${process.env.DATA_BACKEND_URL}/${path}`;
 }
 
-export const getServerSystemPrompt = async () => {
-    const res: AxiosResponse<{ result: { system_prompt: string } }> = await axios.get(
-        `https://agent.api.eternalai.org/api/agent/app-config?network_id=${process.env.NETWORK_ID}&agent_name=xconnect`,
-    );
-    return res.data.result.system_prompt;
-}
-
-export const sendPrompt = async (
-    request: {
-        env: any,
-        messages: any[],
-        stream: boolean,
-    }
-): Promise<any> => {
-    const apiKey = (request.env && request.env.X_USER_API_KEY) ? request.env.X_USER_API_KEY : (process.env.X_USER_API_KEY || '');
-    try {
-        var authRes: any = {
-            username: '',
-            fullName: '',
-            personality: '',
-            verified: false,
-        };
-        try {
-            const res: AxiosResponse<{ result: { username: string, name: string, verified: boolean } }> = await axios.get(formatDataUrlPath('api/xconnect/auth'), {
-                headers: {
-                    'api-key': apiKey,
-                },
-            });
-            authRes.username = res.data.result.username;
-            authRes.fullName = res.data.result.name;
-        } catch (error) {
-        }
-        var maxChar = 0;
-        if (authRes.verified) {
-            maxChar = 4000;
-        } else {
-            maxChar = 280;
-        }
-        authRes.personality = (request.env && request.env.X_USER_PERSONALITY) ? request.env.X_USER_PERSONALITY : (process.env.X_USER_PERSONALITY || '');
-        const params = {
-            model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
-            maxSteps: 25,
-            system: `
+const getServerSystemPromptTemplate = `
 You are a Twitter assistant designed to help the user interact with Twitter (X) effectively. Your role is to assist with tasks such as retrieving mentions, replying to tweets, posting tweets, and searching tweets by topic or keyword. You have access to the user's Twitter profile information and must tailor your actions to reflect their personality.
 
 **User Information:**
-- Twitter Username: ${authRes.username}
-- Twitter Full Name: ${authRes.fullName}
-- Personality: ${authRes.personality}
-- Character Limit: ${maxChar}
+- Twitter Username: {{username}}
+- Twitter Full Name: {{fullName}}
+- Personality: {{personality}}
+- Character Limit: {{maxChar}}
 
 **Capabilities and Guidelines:**
 1. **Retrieving Mentions:**
@@ -111,7 +70,66 @@ You are a Twitter assistant designed to help the user interact with Twitter (X) 
 - Maintain user privacy and do not share sensitive information (e.g., authentication details) in responses.
 
 Proceed with the user's request, using the above guidelines to deliver a seamless Twitter
-        `,
+`
+
+export const getServerSystemPrompt = async () => {
+    try {
+        const res: AxiosResponse<{ result: { system_prompt: string } }> = await axios.get(
+            `https://agent.api.eternalai.org/api/agent/app-config?network_id=${process.env.NETWORK_ID}&agent_name=xconnect`,
+        );
+        return res.data.result.system_prompt;
+    } catch (error) {
+    }
+    return getServerSystemPromptTemplate;
+}
+
+export const getServerSystemPromptWithParams = async (params: {}) => {
+    const systemPrompt = await getServerSystemPrompt();
+    const systemPromptWithParams = Mustache.render(systemPrompt || '', params);
+    return systemPromptWithParams;
+}
+
+export const sendPrompt = async (
+    request: {
+        env: any,
+        messages: any[],
+        stream: boolean,
+    }
+): Promise<any> => {
+    const apiKey = (request.env && request.env.X_USER_API_KEY) ? request.env.X_USER_API_KEY : (process.env.X_USER_API_KEY || '');
+    try {
+        var authRes: any = {
+            username: '',
+            fullName: '',
+            personality: '',
+            verified: false,
+        };
+        try {
+            const res: AxiosResponse<{ result: { username: string, name: string, verified: boolean } }> = await axios.get(formatDataUrlPath('api/xconnect/auth'), {
+                headers: {
+                    'api-key': apiKey,
+                },
+            });
+            authRes.username = res.data.result.username;
+            authRes.fullName = res.data.result.name;
+        } catch (error) {
+        }
+        var maxChar = 0;
+        if (authRes.verified) {
+            maxChar = 4000;
+        } else {
+            maxChar = 280;
+        }
+        authRes.personality = (request.env && request.env.X_USER_PERSONALITY) ? request.env.X_USER_PERSONALITY : (process.env.X_USER_PERSONALITY || '');
+        const params = {
+            model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
+            maxSteps: 25,
+            system: await getServerSystemPromptWithParams({
+                username: authRes.username,
+                fullName: authRes.fullName,
+                personality: authRes.personality,
+                maxChar: maxChar,
+            }),
             tools: {
                 getTwitterTweetsMentions: {
                     description: 'get the mentions of the user, the mentions are the tweets that mention the user',
