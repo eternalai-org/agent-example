@@ -45,8 +45,8 @@ export const getServerSystemPrompt = async () => {
         );
         return res.data.result.system_prompt;
     } catch (error) {
-        return defaultSystemPrompt
     }
+    return defaultSystemPrompt
 }
 
 export const sendPrompt = async (request: { messages: any[], stream: boolean }): Promise<any> => {

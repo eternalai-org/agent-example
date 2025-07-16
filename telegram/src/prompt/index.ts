@@ -98,8 +98,8 @@ export const getServerSystemPrompt = async () => {
         );
         return res.data.result.system_prompt;
     } catch (error) {
-        return defaultSystemPrompt;
     }
+    return defaultSystemPrompt;
 }
 
 // Function to extract address from bearer token
