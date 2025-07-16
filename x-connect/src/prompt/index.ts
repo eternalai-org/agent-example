@@ -63,6 +63,7 @@ You are a Twitter assistant designed to help the user interact with Twitter (X) 
 - Twitter Username: ${authRes.username}
 - Twitter Full Name: ${authRes.fullName}
 - Personality: ${authRes.personality}
+- Character Limit: ${maxChar}
 
 **Capabilities and Guidelines:**
 1. **Retrieving Mentions:**
@@ -74,11 +75,13 @@ You are a Twitter assistant designed to help the user interact with Twitter (X) 
    - Before replying, use the getTweetDetailById tool to retrieve the full conversation context of the tweet to ensure the reply is relevant and appropriate.
    - Craft replies that align with the user's personality. For example, if the personality is "friendly and humorous," use a lighthearted and engaging tone; if "professional and concise," keep replies formal and to the point.
    - Use the replyToTweet tool to post the reply, ensuring the tweet ID is correctly referenced.
+   - The reply should be split into multiple tweets if it exceeds the character limit.
 
 3. **Posting Tweets:**
    - When posting a tweet, use the postTweet tool with the provided content.
    - Ensure the tweet reflects the user's personality in tone and style.
    - Keep tweets within Twitter's character limit (${maxChar} characters) unless otherwise specified.
+   - Tweet should be split into multiple tweets if it exceeds the character limit.
 
 4. **Searching Tweets:**
    - Use the searchTopic tool to search for tweets by topic or keyword when requested. This tool does not require authorization.
@@ -158,23 +161,27 @@ Proceed with the user's request, using the above guidelines to deliver a seamles
                     description: 'reply to the tweet with the given reply, should be use the tweet detail to get the full conversation of the tweet',
                     parameters: z.object({
                         tweetId: z.string().describe('The id of the tweet to reply to'),
-                        reply: z.string().describe('The reply content to the tweet'),
+                        contents: z.array(z.string()).describe('The reply content to the tweet, the contents should be split into multiple tweets if it exceeds the character limit'),
                     }),
-                    execute: async (args: { tweetId: string, reply: string }) => {
+                    execute: async (args: { tweetId: string, contents: string[] }) => {
                         console.log('execute replyToTweet', args);
                         try {
-                            const res: AxiosResponse<{ result: string }> = await axios.post(
-                                formatDataUrlPath(`api/xconnect/tweet/reply`),
-                                {
-                                    reply_tweet_id: args.tweetId,
-                                    content: args.reply,
-                                },
-                                {
-                                    headers: {
-                                        'api-key': apiKey,
+                            var replyTweetId = args.tweetId
+                            for (const content of args.contents) {
+                                const res: AxiosResponse<{ result: string }> = await axios.post(
+                                    formatDataUrlPath(`api/xconnect/tweet/reply`),
+                                    {
+                                        reply_tweet_id: replyTweetId,
+                                        content: content,
                                     },
-                                });
-                            return res.data.result;
+                                    {
+                                        headers: {
+                                            'api-key': apiKey,
+                                        },
+                                    });
+                                replyTweetId = res.data.result;
+                            }
+                            return replyTweetId;
                         } catch (error) {
                             logger.error('Error replying to tweet:', error);
                             return 'Error replying to tweet: ' + error;
@@ -184,22 +191,41 @@ Proceed with the user's request, using the above guidelines to deliver a seamles
                 postTweet: {
                     description: 'post the tweet with the given content',
                     parameters: z.object({
-                        content: z.string().describe('The content of the tweet'),
+                        contents: z.array(z.string()).describe('The contents of the tweet, the contents should be split into multiple tweets if it exceeds the character limit'),
                     }),
-                    execute: async (args: { content: string }) => {
+                    execute: async (args: { contents: string[] }) => {
                         console.log('execute postTweet', args);
                         try {
-                            const res: AxiosResponse<{ result: string }> = await axios.post(
-                                formatDataUrlPath(`api/xconnect/tweet/post`),
-                                {
-                                    content: args.content,
-                                },
-                                {
-                                    headers: {
-                                        'api-key': apiKey,
-                                    },
-                                });
-                            return res.data.result;
+                            var replyTweetId = ''
+                            for (const content of args.contents) {
+                                if (replyTweetId == '') {
+                                    const res: AxiosResponse<{ result: string }> = await axios.post(
+                                        formatDataUrlPath(`api/xconnect/tweet/post`),
+                                        {
+                                            content: content,
+                                        },
+                                        {
+                                            headers: {
+                                                'api-key': apiKey,
+                                            },
+                                        });
+                                    replyTweetId = res.data.result;
+                                } else {
+                                    const res: AxiosResponse<{ result: string }> = await axios.post(
+                                        formatDataUrlPath(`api/xconnect/tweet/reply`),
+                                        {
+                                            reply_tweet_id: replyTweetId,
+                                            content: content,
+                                        },
+                                        {
+                                            headers: {
+                                                'api-key': apiKey,
+                                            },
+                                        });
+                                    replyTweetId = res.data.result;
+                                }
+                            }
+                            return replyTweetId;
                         } catch (error) {
                             logger.error('Error replying to tweet:', error);
                             return 'Error replying to tweet: ' + error;

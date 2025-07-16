@@ -12,7 +12,10 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "build-docker": "docker build -t test .",
     "zip": "zip -r release.zip src package.json Dockerfile tsconfig.json greeting.txt",
-    "chat": "ts-node src/chat.ts"
+    "unzip": "rm -rf release && unzip release.zip -d release",
+    "chat": "ts-node src/chat.ts",
+    "podmanbuild": "yarn zip && yarn unzip && cd ./release && podman build -t localhost/84532_agent_9514 .",
+    "podmanrun": "cd ./release && podman run -p 3000:80 -it localhost/84532_agent_9514"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.3.22",
