@@ -18,7 +18,7 @@
     "migrate:rollback": "ts-node src/migration-cli.ts rollback",
     "migrate:status": "ts-node src/migration-cli.ts status",
     "create:migration": "ts-node src/create-migration.ts",
-    "zip": "rm -rf release.zip && zip -r release.zip Dockerfile ecosystem.json greeting.txt package.json tsconfig.json src",
+    "zip": "rm -rf release.zip && zip -r release.zip Dockerfile ecosystem.json greeting.txt package.json tsconfig.json src -x src/chat.ts -x src/test.ts",
     "unzip": "rm -rf release && unzip release.zip -d release",
     "podmanbuild": "yarn zip && yarn unzip && cd ./release && podman build -t localhost/84532_agent_9483 .",
     "podmanrun": "cd ./release && podman run -p 3000:80 -it localhost/84532_agent_9483"

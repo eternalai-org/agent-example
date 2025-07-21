@@ -116,9 +116,9 @@ export const sendPrompt = async (
         }
         var maxChar = 0;
         if (authRes.verified) {
-            maxChar = 4000;
+            maxChar = 3900;
         } else {
-            maxChar = 280;
+            maxChar = 260;
         }
         authRes.personality = (request.env && request.env.X_USER_PERSONALITY) ? request.env.X_USER_PERSONALITY : (process.env.X_USER_PERSONALITY || '');
         const params = {
