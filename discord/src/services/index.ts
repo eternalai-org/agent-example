@@ -44,7 +44,7 @@ export const syncDiscordMessagesForChannel = async (serverId: string, channel: a
                     channel_id: channel.id,
                     channel: channel.name,
                     id: message.id,
-                    author: message.author.tag,
+                    author: message.author.username,
                     bot: message.author.bot,
                     content: message.content,
                     timestamp: message.createdAt,
@@ -155,7 +155,7 @@ export const summarizeMessagesForChannel = async (serverId: string, channelId: s
                 order: [['id', 'ASC']],
                 limit: 200,
             })
-            if (messages.length < 20) break
+            if (messages.length < 20 || (summaryUpdated && summaryUpdated.dataValues.num_messages >= messages.length)) break
             const text = await analyzeMessages(messages.map((message) => ({
                 channel_id: message.dataValues.channel_id,
                 channel: message.dataValues.channel,

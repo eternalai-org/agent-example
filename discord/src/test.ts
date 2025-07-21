@@ -3,15 +3,23 @@ dotenv.config();
 import { syncDB } from './services/database';
 import { summarizeMessagesForAllChannels, summarizeMessagesForChannel, syncDiscordMessagesForChannel, syncDiscordMessagesForServer } from './services';
 import { convertSnowflakeIDToDate } from './services/helpers';
+import { getRecentMessages } from './services/discord';
 
 (async () => {
     // console.log('Hello World', convertSnowflakeIDToDate('1371383018001928283'));
     // console.log('Hello World', convertDateToSnowflakeID(new Date()));
-    await syncDB()
+    // await syncDB()
 
-    await syncDiscordMessagesForServer()
+    // await syncDiscordMessagesForServer()
 
-    await summarizeMessagesForAllChannels()
+    // await summarizeMessagesForAllChannels()
+
+    // console.log(
+    //     await getServerMemberCount(
+    //         process.env.DISCORD_BOT_TOKEN || '',
+    //         process.env.DISCORD_SERVER_ID || ''
+    //     )
+    // )
 
     // const messages = await DiscordMessages.findAll({
     //     where: {

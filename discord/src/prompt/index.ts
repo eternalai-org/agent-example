@@ -4,7 +4,7 @@ import { number, z } from "zod";
 import { DiscordSummaries } from '../services/database';
 import { Op } from 'sequelize';
 import { summarizeMessagesForAllChannels, summarizeMessagesForChannel, SYNC_TIME_RANGE, syncDiscordMessagesForChannel, syncDiscordMessagesForServer } from '../services';
-import { getServerChanels } from '../services/discord';
+import { getRecentMessages, getServerChanels } from '../services/discord';
 
 const clientOpenAI = createOpenAI({
     name: process.env.LLM_MODEL_ID || 'gpt-4o-mini',
@@ -31,16 +31,30 @@ export const sendPrompt = async (
         const { textStream } = streamText({
             model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
             maxSteps: 25,
-            system: `You are a Discord agent that can manage discord server.
+            system: `You are a Discord server analysis assistant. You help users understand the discussions and activities happening in their Discord server by analyzing message summaries.
+
+            You have access to the following tools:
+
+            1. getAllChannels: Lists all channels in the server with their IDs, names and types. Use this to identify specific channels.
+
+            2. getDiscordSummaries: Retrieves topic-based summaries of channel messages, including:
+               - Number of messages per topic
+               - Number of users discussing each topic
+               - Time range of messages
+               - Can analyze specific channels or all channels
+               - Limited to past 15 days of data
+
+            Important notes:
+            - Always check channel names/IDs before analyzing specific channels
+            - Due to data volume, you work with pre-generated summaries rather than raw messages
+            - Cannot provide summaries for periods beyond 15 days ago
+            - When asked about older data, kindly explain this limitation
             
-            You can use the following tools to manage the discord server:
-            
-            Note:
-            getDiscordSummaries: Get the summaries of the channels with time range.
-            - channel_id: The channel id to get the summaries for. If not provided, all channels will be returned.
-            - get all messages from server will be large data, so you need to get the summaries of the channels by time range first.
-            - if duration is over 15 days, respond to user that you cannot get summaries beyond that time range.
-            `,
+            Focus on helping users understand:
+            - What topics are being discussed
+            - How active different channels are
+            - Trends in discussions across channels
+            `.trim(),
             tools: {
                 getAllChannels: {
                     description: 'Get all channels of the server. This is a list of all channels in the server (id, name, type). You can use this to get the channel id to get the summaries of the channels.',
@@ -57,6 +71,22 @@ export const sendPrompt = async (
                                 }
                             });
                         } catch (error) {
+                            return `Error ${error instanceof Error ? error.message : 'Unknown error'}`
+                        }
+                    },
+                },
+                getRecentMessages: {
+                    description: 'Get recent messages from the server. This is a list of recent messages from the server (id, content, author, timestamp).',
+                    parameters: z.object({
+                        channel_id: z.string().optional().describe('The channel id to get the recent messages for. The channel id is the id of the channel in the server. If not provided, all channels will be returned.'),
+                    }),
+                    execute: async (args: { channel_id: string }) => {
+                        console.log('getRecentMessages', args)
+                        try {
+                            const messages = await getRecentMessages(botToken, serverId, args.channel_id);
+                            return messages;
+                        } catch (error) {
+                            console.log('getRecentMessages error', error)
                             return `Error ${error instanceof Error ? error.message : 'Unknown error'}`
                         }
                     },
