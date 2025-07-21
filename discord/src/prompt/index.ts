@@ -76,7 +76,7 @@ export const sendPrompt = async (
                 getRecentMessages: {
                     description: 'Get recent messages from the channel. This is a list of recent messages from the channel (id, content, author, timestamp).',
                     parameters: z.object({
-                        channel_id: z.string().describe('The channel id to get the recent messages for. The channel id is the id of the channel in the server.'),
+                        channel_id: z.string().describe('The channel id to get the recent messages for. The channel id is the id of the channel in the server.')
                     }),
                     execute: async (args: { channel_id: string }) => {
                         console.log('getRecentMessages', args)
@@ -93,11 +93,12 @@ export const sendPrompt = async (
                     description: 'Get summaries of channel messages grouped by topic and time range. Each summary includes the number of messages and users discussing each topic.',
                     parameters: z.object({
                         channel_id: z.string().optional().describe('The channel id to get the summaries for. The channel id is the id of the channel in the server. If not provided, all channels will be returned.'),
+                        // duration: z.number().default(360).describe('The duration is the number of hours to get the summaries for. The default is 360 hours (15 days).'),
                     }),
-                    execute: async (args: { channel_id: string }) => {
+                    execute: async (args: { channel_id: string, duration: number }) => {
                         console.log('getDiscordSummaries', args)
                         try {
-                            var fromTimestamp = new Date(Date.now() - SYNC_TIME_RANGE);
+                            var fromTimestamp = new Date(Date.now() - (args.duration * 60 * 60 * 1000 || SYNC_TIME_RANGE));
                             const whereMap: any = {
                                 server_id: serverId,
                                 to_timestamp: {
@@ -138,6 +139,9 @@ export const sendPrompt = async (
             onError: (error) => {
                 console.log('sendPromptWithMultipleAgents onError', error);
             },
+            // onStepFinish: (step) => {
+            //     console.log('sendPrompt onStepFinish', step)
+            // }
         });
         return textStream;
     } catch (error) {
