@@ -38,6 +38,10 @@ export const sendPrompt = async (
                - Can analyze specific channels or all channels
                - Limited to past 15 days of data
 
+            3. getRecentMessages: Retrieves recent messages from a channel, including:
+                - Channel ID
+                - List of messages (id, content, author, timestamp)
+
             Important notes:
             - Always check channel names/IDs before analyzing specific channels
             - Due to data volume, you work with pre-generated summaries rather than raw messages
