@@ -35,3 +35,4 @@ release/*
 /configBuild/vibeApps.provisionprofile
 
 release.zip
+db

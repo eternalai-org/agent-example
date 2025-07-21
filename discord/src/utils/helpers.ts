@@ -48,19 +48,6 @@ export const extractBearerToken = (bearerToken: string) => {
     return bearerToken.trim()
 }
 
-export const removeThinking = (text: string) => {
-    var rs = text.replace(/<think>.*?<\/think>/gis, '');
-    rs = rs.replace(/<action>.*?<\/action>/gis, '');
-    rs = rs.replace(/<summary>.*?<\/summary>/gis, '');
-    rs = rs.replace(/<details>.*?<\/details>/gis, '');
-    return rs
-}
-
-export const removeBase64Images = (htmlString: string) => {
-    return htmlString.replace(/<img[^>]+src=["']data:image\/[^"']+["'][^>]*>/gi, '');
-}
-
-
 const SYSTEM_PROMPT_WITH_MULTIPLE_AGENTS = `
 You are an orchestrator assistant responsible for managing a workflow of multiple AI agents. Your tasks are to:  
 1. Analyze the user's request and determine the optimal sequence of agent calls.  

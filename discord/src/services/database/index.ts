@@ -31,6 +31,10 @@ export const DiscordMessages = sequelize.define(
             type: DataTypes.STRING,
             allowNull: false,
         },
+        bot: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+        },
         content: {
             type: DataTypes.TEXT,
             allowNull: false,
@@ -50,6 +54,9 @@ export const DiscordMessages = sequelize.define(
             },
             {
                 fields: ['timestamp'],
+            },
+            {
+                fields: ['bot'],
             }
         ]
     },
@@ -59,8 +66,9 @@ export const DiscordSummaries = sequelize.define(
     'discord_summaries',
     {
         id: {
-            type: DataTypes.STRING,
+            type: DataTypes.INTEGER,
             primaryKey: true,
+            autoIncrement: true,
         },
         server_id: {
             type: DataTypes.STRING,
@@ -72,6 +80,10 @@ export const DiscordSummaries = sequelize.define(
         },
         summary: {
             type: DataTypes.TEXT,
+            allowNull: false,
+        },
+        num_messages: {
+            type: DataTypes.INTEGER,
             allowNull: false,
         },
         from_timestamp: {

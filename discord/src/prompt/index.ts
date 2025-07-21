@@ -2,7 +2,6 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { streamText } from 'ai';
 import { z } from "zod";
 import { getAuthorizationToken, getServerSystemPrompt } from "../utils/helpers";
-import { callAgentWithArgs, startAgent } from '../backend';
 
 const clientOpenAI = createOpenAI({
     name: process.env.LLM_MODEL_ID || 'gpt-4o-mini',
@@ -54,48 +53,7 @@ export const sendPromptWithMultipleAgents = async (
                 custom_env: process.env.APP_ENV_15249 || ''
             }
         ]
-        for (const agent of agents) {
-            await startAgent(agent.id, agent?.custom_env || '');
-        }
         const tools: any = {}
-        for (const agent of agents) {
-            const agent_id = agent.id;
-            const custom_env = agent.custom_env;
-            tools[`call_agent_${agent_id}`] = {
-                description: `call agent #${agent_id} (${agent.name}) - ${agent.description}`,
-                parameters: z.object({
-                    'prompt': z.string().describe('The prompt to send to the agent, which should include the action and full previous agent result'),
-                }),
-                execute: async (args: { prompt: string }, { messages }: { messages: any[] }) => {
-                    if (callAgentFunc) {
-                        await callAgentFunc(`
-                            <action>Executing <b>call_agent_${agent_id}</b></action>
-                            <details>
-                            <summary>
-                            Arguments:
-                            </summary>
-                            ${'```\n' + args.prompt + '\n```'}
-                            </details>
-                            <br>
-                        `.trim())
-                    }
-                    const result = await callAgentWithArgs(bearerToken, { agent_id: agent_id, custom_env: custom_env, prompt: args.prompt }, { messages });
-                    if (callAgentFunc) {
-                        await callAgentFunc(`
-                            <action>Result <b>call_agent_${agent_id}</b></action>
-                            <details>
-                            <summary>
-                            Result:
-                            </summary>
-                            ${'```\n' + result + '\n```'}
-                            </details>
-                            <br>
-                        `.trim())
-                    }
-                    return result;
-                },
-            }
-        }
         tools['list_agents'] = {
             description: 'list the agents with id, name and description',
             parameters: z.object({}),
