@@ -12,12 +12,6 @@ const clientOpenAI = createOpenAI({
     apiKey: process.env.LLM_API_KEY || 'no-need',
 });
 
-// export const startAgents = async (agents: { id: number, name: string, description: string, custom_env: string }[]): Promise<any> => {
-//     for (const agent of agents) {
-//         await startAgent(agent.id, agent?.custom_env || '');
-//     }
-// }
-
 export const sendPrompt = async (
     request: { messages: any[] },
     callAgentFunc: (delta: string) => Promise<void>
@@ -57,7 +51,7 @@ export const sendPrompt = async (
             `.trim(),
             tools: {
                 getAllChannels: {
-                    description: 'Get all channels of the server. This is a list of all channels in the server (id, name, type). You can use this to get the channel id to get the summaries of the channels.',
+                    description: 'Get all channels of the server. This is a list of all channels in the server (id, name, type). You can use this to get the channel id to get the summaries of the channels or recent messages.',
                     parameters: z.object({}),
                     execute: async (args) => {
                         console.log('getAllChannels', args)
@@ -76,9 +70,9 @@ export const sendPrompt = async (
                     },
                 },
                 getRecentMessages: {
-                    description: 'Get recent messages from the server. This is a list of recent messages from the server (id, content, author, timestamp).',
+                    description: 'Get recent messages from the channel. This is a list of recent messages from the channel (id, content, author, timestamp).',
                     parameters: z.object({
-                        channel_id: z.string().optional().describe('The channel id to get the recent messages for. The channel id is the id of the channel in the server. If not provided, all channels will be returned.'),
+                        channel_id: z.string().describe('The channel id to get the recent messages for. The channel id is the id of the channel in the server.'),
                     }),
                     execute: async (args: { channel_id: string }) => {
                         console.log('getRecentMessages', args)
@@ -124,7 +118,7 @@ export const sendPrompt = async (
                                 summaries: summaries.map((summary) => {
                                     return {
                                         channel_id: summary.dataValues.channel_id,
-                                        summary: summary.dataValues.summary,
+                                        summaries: JSON.parse(summary.dataValues.summary),
                                         from_timestamp: summary.dataValues.from_timestamp,
                                         to_timestamp: summary.dataValues.to_timestamp,
                                     }

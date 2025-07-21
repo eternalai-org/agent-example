@@ -94,26 +94,31 @@ export const analyzeMessages = async (messages: MessageData[]) => {
     console.log('analyzeMessages', messages[0].timestamp, messages[messages.length - 1].timestamp)
     return await chatMessageWithLLM(
         `
-        You are a Discord Message Analyzer.
+        You are a Discord Message Analyzer. Your role is to identify and categorize meaningful discussion topics from Discord conversations.
+
+        Guidelines:
+        - Focus on substantive topics and discussions
+        - Ignore casual chatter, greetings, and test messages
+        - Be specific with topic names (e.g. "React Component Testing" vs just "Programming")
+        - Group related messages even if they use slightly different terminology
+        - Only count messages that actively contribute to a topic
+        - Track unique users participating in each topic
+
+        You must output your analysis as a JSON array with this exact format:
+        [
+          {
+            "topic": "Specific topic name",
+            "number_of_messages": Number of messages about this topic,
+            "number_of_users": Number of unique users discussing this topic
+          }
+        ]
+
+        Do not include any explanation or other text - only output valid JSON.
         `,
         `
-                You are given a list of messages and you need to analyze them by topic. You help users understand what topics are being discussed in the messages.
-                You need to return a summary of the messages with json format and not include explanation.
-                The json format is:
-                [
-                    {
-                        "topic": "string",
-                        "number_of_messages": "number",
-                        "number_of_users": "number"
-                    },
-                    ...
-                ]
-                The topic should be specific and not too general. Ignore casual conversation, test messages, and messages that are not related to the topic.
-                The number of messages should be the number of messages that have the same topic or discuss in the same topic.
+        Analyze these messages by topic according to the guidelines above:
 
-                The messages are:
-
-                ${messages.map((message) => `- ${message.author} : ${message.content}`).join('\n')}
+        ${messages.map((message) => `- ${message.author} : ${message.content}`).join('\n')}
         `
     )
 }
