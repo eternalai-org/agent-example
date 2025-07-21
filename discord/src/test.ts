@@ -8,7 +8,8 @@ import { convertSnowflakeIDToDate } from './services/helpers';
     // console.log('Hello World', convertSnowflakeIDToDate('1371383018001928283'));
     // console.log('Hello World', convertDateToSnowflakeID(new Date()));
     await syncDB()
-    // await syncDiscordMessagesForServer()
+
+    await syncDiscordMessagesForServer()
 
     await summarizeMessagesForAllChannels()
 

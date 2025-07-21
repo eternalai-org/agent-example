@@ -2,7 +2,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 import express from "express";
 import cors from 'cors';
-import { sendPromptWithMultipleAgents } from "./prompt";
+import { sendPrompt } from "./prompt";
+import { jobSyncDiscordMessagesAndSummarize } from './services';
 
 const app = express();
 const port = process.env.PORT || 80;
@@ -42,7 +43,7 @@ app.post('/prompt', async (req: any, res: any) => {
         const callAgentFunc = async (delta: string) => {
             writeDelta(delta)
         }
-        const textStream = await sendPromptWithMultipleAgents(req.body, callAgentFunc);
+        const textStream = await sendPrompt(req.body, callAgentFunc);
         const pingFunc = async () => {
             const message = {
                 choices: [
@@ -86,6 +87,9 @@ app.post('/prompt', async (req: any, res: any) => {
 
 // Start the server
 (async () => {
+    // start the job to sync discord messages and summarize
+    jobSyncDiscordMessagesAndSummarize()
+    // start server on port
     app.listen(port, () => {
         console.log(`Server is running on port ${port}`);
     });

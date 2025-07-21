@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
-import { sendPromptWithMultipleAgents } from "./prompt";
+import { sendPrompt } from "./prompt";
 import readline from 'readline';
 
 // Create readline interface
@@ -10,27 +10,6 @@ const rl = readline.createInterface({
 });
 
 var messages: any[] = [];
-
-const agents = [
-    {
-        id: 15605,
-        name: 'News',
-        description: 'get news',
-        custom_env: ''
-    },
-    {
-        id: 15292,
-        name: 'Hacker News',
-        description: 'get news from hacker news',
-        custom_env: ''
-    },
-    {
-        id: 15264,
-        name: 'Telegram',
-        description: 'post message to telegram',
-        custom_env: process.env.APP_ENV_15264 || ''
-    },
-]
 
 // Function to prompt user in a loop
 async function promptUser() {
@@ -46,10 +25,9 @@ async function promptUser() {
             const callAgentFunc = async (delta: string) => {
                 process.stdout.write(delta);
             }
-            const textStream = await sendPromptWithMultipleAgents(
+            const textStream = await sendPrompt(
                 {
                     messages: messages,
-                    agents
                 },
                 callAgentFunc,
             );

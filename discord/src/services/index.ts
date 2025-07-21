@@ -7,57 +7,63 @@ import { Op } from "sequelize";
 import { convertDateToSnowflakeID, removeThinking } from "./helpers";
 import { MessageData } from "./types";
 import { chatMessageWithLLM } from "./llm";
+import { Mutex } from "async-mutex";
 
-const SYNC_TIME_RANGE = 15 * 24 * 60 * 60 * 1000
+export const SYNC_TIME_RANGE = 15 * 24 * 60 * 60 * 1000
+
+const discordMtx = new Mutex()
 
 export const syncDiscordMessagesForChannel = async (serverId: string, channel: any) => {
-    while (true) {
-        const msg = await DiscordMessages.findOne(
-            {
-                where: {
+    console.log('syncDiscordMessagesForChannel', serverId, channel.id)
+    await discordMtx.runExclusive(async () => {
+        while (true) {
+            const msg = await DiscordMessages.findOne(
+                {
+                    where: {
+                        channel_id: channel.id,
+                    },
+                    order: [['id', 'DESC']],
+                }
+            )
+            var lastId = convertDateToSnowflakeID(new Date(new Date().getTime() - SYNC_TIME_RANGE))
+            if (msg) {
+                const msgId = msg.dataValues.id as string
+                if (lastId < msgId) {
+                    lastId = msgId
+                }
+            }
+            const messages = await channel.messages.fetch({
+                limit: 100,
+                after: lastId,
+            });
+            if (messages.size === 0) break;
+            for (var i = messages.size - 1; i >= 0; i--) {
+                const message = messages.at(i) as Message;
+                const msgData = {
+                    server_id: serverId,
                     channel_id: channel.id,
-                },
-                order: [['id', 'DESC']],
+                    channel: channel.name,
+                    id: message.id,
+                    author: message.author.tag,
+                    bot: message.author.bot,
+                    content: message.content,
+                    timestamp: message.createdAt,
+                }
+                try {
+                    await DiscordMessages.create(
+                        msgData
+                    )
+                } catch (error) {
+                }
+                console.log('msgData', msgData)
             }
-        )
-        var lastId = convertDateToSnowflakeID(new Date(new Date().getTime() - SYNC_TIME_RANGE))
-        if (msg) {
-            const msgId = msg.dataValues.id as string
-            if (lastId < msgId) {
-                lastId = msgId
-            }
+            if (messages.size < 100) break;
+            await new Promise((resolve) => setTimeout(resolve, 500));
         }
-        const messages = await channel.messages.fetch({
-            limit: 100,
-            after: lastId,
-        });
-        if (messages.size === 0) break;
-        for (var i = messages.size - 1; i >= 0; i--) {
-            const message = messages.at(i) as Message;
-            const msgData = {
-                server_id: serverId,
-                channel_id: channel.id,
-                channel: channel.name,
-                id: message.id,
-                author: message.author.tag,
-                bot: message.author.bot,
-                content: message.content,
-                timestamp: message.createdAt,
-            }
-            try {
-                await DiscordMessages.create(
-                    msgData
-                )
-            } catch (error) {
-            }
-            console.log('msgData', msgData)
-        }
-        if (messages.size < 100) break;
-        await new Promise((resolve) => setTimeout(resolve, 500));
-    }
+    })
 }
 
-export const syncDiscordMessagesForServer = async () => {
+export const syncDiscordMessagesForServer = async (channelId?: string) => {
     const botToken = process.env.DISCORD_BOT_TOKEN;
     const serverId = process.env.DISCORD_SERVER_ID;
     if (!botToken) {
@@ -71,6 +77,7 @@ export const syncDiscordMessagesForServer = async () => {
     console.log(`Syncing messages for server ${serverId}`);
     const channels = await getServerChanels(botToken, serverId);
     for (const [id, channel] of channels) {
+        if (channelId && id !== channelId) continue;
         try {
             console.log(`Syncing messages for channel ${channel.name}`);
             await syncDiscordMessagesForChannel(serverId, channel)
@@ -112,57 +119,80 @@ export const analyzeMessages = async (messages: MessageData[]) => {
 }
 
 export const summarizeMessagesForChannel = async (serverId: string, channelId: string) => {
-    while (true) {
-        var lastId: string | undefined;
-        const summary = await DiscordSummaries.findOne({
-            where: {
-                server_id: serverId,
-                channel_id: channelId,
-            },
-            order: [['to_timestamp', 'DESC']],
-        })
-        if (summary) {
-            lastId = convertDateToSnowflakeID(summary.dataValues.to_timestamp as Date)
-        } else {
-            lastId = convertDateToSnowflakeID(new Date(new Date().getTime() - SYNC_TIME_RANGE))
-        }
-        const messages = await DiscordMessages.findAll({
-            where: {
-                server_id: serverId,
-                channel_id: channelId,
-                id: {
-                    [Op.gt]: lastId,
+    console.log('summarizeMessagesForChannel', serverId, channelId)
+    await discordMtx.runExclusive(async () => {
+        while (true) {
+            var lastId: string | undefined;
+            const summary = await DiscordSummaries.findOne({
+                where: {
+                    server_id: serverId,
+                    channel_id: channelId,
                 },
-                bot: {
-                    [Op.eq]: false,
-                }
-            },
-            order: [['id', 'ASC']],
-            limit: 200,
-        })
-        if (messages.length < 50) break
-        const text = await analyzeMessages(messages.map((message) => ({
-            channel_id: message.dataValues.channel_id,
-            channel: message.dataValues.channel,
-            id: message.dataValues.id,
-            author: message.dataValues.author,
-            content: message.dataValues.content,
-            timestamp: message.dataValues.timestamp,
-        })))
-        if (text) {
-            await DiscordSummaries.create({
-                server_id: serverId,
-                channel_id: channelId,
-                summary: text,
-                num_messages: messages.length,
-                from_timestamp: messages[0].dataValues.timestamp,
-                to_timestamp: messages[messages.length - 1].dataValues.timestamp,
+                order: [['to_timestamp', 'DESC']],
             })
+            var summaryUpdated: any = null
+            if (summary) {
+                if (summary.dataValues.num_messages < 200) {
+                    lastId = convertDateToSnowflakeID(summary.dataValues.from_timestamp as Date)
+                    summaryUpdated = summary
+                } else {
+                    lastId = convertDateToSnowflakeID(summary.dataValues.to_timestamp as Date)
+                }
+            } else {
+                lastId = convertDateToSnowflakeID(new Date(new Date().getTime() - SYNC_TIME_RANGE))
+            }
+            const messages = await DiscordMessages.findAll({
+                where: {
+                    server_id: serverId,
+                    channel_id: channelId,
+                    id: {
+                        [Op.gt]: lastId,
+                    },
+                    bot: {
+                        [Op.eq]: false,
+                    }
+                },
+                order: [['id', 'ASC']],
+                limit: 200,
+            })
+            if (messages.length < 20) break
+            const text = await analyzeMessages(messages.map((message) => ({
+                channel_id: message.dataValues.channel_id,
+                channel: message.dataValues.channel,
+                id: message.dataValues.id,
+                author: message.dataValues.author,
+                content: message.dataValues.content,
+                timestamp: message.dataValues.timestamp,
+            })))
+            if (text) {
+                if (summaryUpdated) {
+                    await DiscordSummaries.update({
+                        summary: text,
+                        num_messages: messages.length,
+                        from_timestamp: messages[0].dataValues.timestamp,
+                        to_timestamp: messages[messages.length - 1].dataValues.timestamp,
+                    }, {
+                        where: {
+                            id: summary?.dataValues?.id,
+                        }
+                    })
+                } else {
+                    await DiscordSummaries.create({
+                        server_id: serverId,
+                        channel_id: channelId,
+                        summary: text,
+                        num_messages: messages.length,
+                        from_timestamp: messages[0].dataValues.timestamp,
+                        to_timestamp: messages[messages.length - 1].dataValues.timestamp,
+                    })
+                }
+            }
+            if (messages.length < 200) break
         }
-    }
+    })
 }
 
-export const summarizeMessagesForAllChannels = async () => {
+export const summarizeMessagesForAllChannels = async (channelId?: string) => {
     try {
         const botToken = process.env.DISCORD_BOT_TOKEN;
         const serverId = process.env.DISCORD_SERVER_ID;
@@ -177,6 +207,7 @@ export const summarizeMessagesForAllChannels = async () => {
         console.log('Summarizing all channels for server', serverId);
         const channels = await getServerChanels(botToken, serverId);
         for (const [id, channel] of channels) {
+            if (channelId && id !== channelId) continue;
             try {
                 console.log(`Summarizing channel ${channel.name}`);
                 await summarizeMessagesForChannel(serverId, id)
@@ -188,5 +219,18 @@ export const summarizeMessagesForAllChannels = async () => {
         console.log('Summarized all channels for server', serverId);
     } catch (error) {
         console.log(`Cannot summarize all channels: ${error}`);
+    }
+}
+
+export const jobSyncDiscordMessagesAndSummarize = async () => {
+    while (true) {
+        try {
+            await syncDiscordMessagesForServer()
+            await summarizeMessagesForAllChannels()
+        } catch (error) {
+            console.log(`Cannot sync discord messages and summarize: ${error}`);
+        }
+        // sleep 5 minutes
+        await new Promise((resolve) => setTimeout(resolve, 5 * 60 * 1000))
     }
 }
