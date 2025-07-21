@@ -1,2 +1,2 @@
-DISCORD_BOT_TOKEN=Bot token | Browse the URL `https://discord.com/developers/applications` to create bot and get token.
+DISCORD_BOT_TOKEN=Bot token | Browse the URL `https://discord.com/developers/applications`. Go to Discord Developer Portal -> Create a new application, add a bot, and copy the bot token -> Enable Privileged Gateway Intents (Message Content Intent, Server Members Intent) in the Bot settings -> Invite the bot to your server using the OAuth2 URL generator (select bot scope and permissions like Read Messages/View Channels).
 DISCORD_SERVER_ID=Server ID | Write about server id.
