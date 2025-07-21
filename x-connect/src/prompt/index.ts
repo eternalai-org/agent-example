@@ -281,7 +281,7 @@ export const sendPrompt = async (
             },
             messages: request.messages,
             onError: (error: any) => {
-                logger.error('Error sending prompt:', error);
+                console.log('Error sending prompt:', error);
             }
         }
         if (request.stream) {
@@ -292,7 +292,7 @@ export const sendPrompt = async (
             return text;
         }
     } catch (error) {
-        logger.error('Error sending prompt:', error);
+        console.log('Error sending prompt:', error);
         throw new Error('Failed to send prompt');
     }
 }
