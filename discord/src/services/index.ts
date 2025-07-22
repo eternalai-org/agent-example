@@ -180,7 +180,7 @@ export const summarizeMessagesForChannel = async (serverId: string, channelId: s
                         to_timestamp: messages[messages.length - 1].dataValues.timestamp,
                     }, {
                         where: {
-                            id: summary?.dataValues?.id,
+                            id: summaryUpdated.dataValues.id,
                         }
                     })
                 } else {
@@ -230,38 +230,51 @@ export const summarizeMessagesForAllChannels = async (channelId?: string) => {
 }
 
 export const deleteOldSummaries = async () => {
-    await DiscordSummaries.destroy({
-        where: {
-            to_timestamp: {
-                [Op.lt]: new Date(Date.now() - SYNC_TIME_RANGE),
+    console.log('Deleting old summaries')
+    try {
+        await DiscordSummaries.destroy({
+            where: {
+                to_timestamp: {
+                    [Op.lt]: new Date(Date.now() - SYNC_TIME_RANGE),
+                },
             },
-        },
-    })
+        })
+    } catch (error) {
+        console.log(`Cannot delete old summaries: ${error}`);
+    }
     console.log('Deleted old summaries')
 }
 
 export const deleteOldMessages = async () => {
-    await DiscordMessages.destroy({
-        where: {
-            timestamp: {
-                [Op.lt]: new Date(Date.now() - SYNC_TIME_RANGE),
+    console.log('Deleting old messages')
+    try {
+        await DiscordMessages.destroy({
+            where: {
+                timestamp: {
+                    [Op.lt]: new Date(Date.now() - SYNC_TIME_RANGE),
+                },
             },
-        },
-    })
+        })
+    } catch (error) {
+        console.log(`Cannot delete old messages: ${error}`);
+    }
     console.log('Deleted old messages')
 }
 
 export const jobSyncDiscordMessagesAndSummarize = async () => {
     while (true) {
+        console.log('Syncing discord messages and summarizing')
         try {
             await deleteOldSummaries()
             await deleteOldMessages()
             await syncDiscordMessagesForServer()
             await summarizeMessagesForAllChannels()
+            console.log('Synced discord messages and summarized')
         } catch (error) {
             console.log(`Cannot sync discord messages and summarize: ${error}`);
         }
         // sleep 5 minutes
+        console.log('Sleeping for 5 minutes')
         await new Promise((resolve) => setTimeout(resolve, 5 * 60 * 1000))
     }
 }
