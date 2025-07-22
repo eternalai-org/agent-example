@@ -18,7 +18,7 @@ COPY ./ ./
 RUN npm run build
 RUN npm rebuild sqlite3 --build-from-source
 
-ENV DATA_BACKEND_URL=https://agent.api.eternalai.org
+ENV STORAGE_PATH=/storage
 
 # Start the application
 CMD ["yarn", "start"]
