@@ -36,7 +36,7 @@ export const sendPrompt = async (
                - Number of users discussing each topic
                - Time range of messages
                - Can analyze specific channels or all channels
-               - Limited to past 15 days of data
+               - Limited to past 7 days of data
 
             3. getRecentMessages: Retrieves recent messages from a channel, including:
                 - Channel ID
@@ -45,7 +45,7 @@ export const sendPrompt = async (
             Important notes:
             - Always check channel names/IDs before analyzing specific channels
             - Due to data volume, you work with pre-generated summaries rather than raw messages
-            - Cannot provide summaries for periods beyond 15 days ago
+            - Cannot provide summaries for periods beyond 7 days ago
             - When asked about older data, kindly explain this limitation
             
             Focus on helping users understand:
@@ -93,7 +93,7 @@ export const sendPrompt = async (
                     description: 'Get summaries of channel messages grouped by topic and time range. Each summary includes the number of messages and users discussing each topic.',
                     parameters: z.object({
                         channel_id: z.string().optional().describe('The channel id to get the summaries for. The channel id is the id of the channel in the server. If not provided, all channels will be returned.'),
-                        // duration: z.number().default(360).describe('The duration is the number of hours to get the summaries for. The default is 360 hours (15 days).'),
+                        // duration: z.number().default(360).describe('The duration is the number of hours to get the summaries for. The default is 360 hours (7 days).'),
                     }),
                     execute: async (args: { channel_id: string, duration: number }) => {
                         console.log('getDiscordSummaries', args)

@@ -4,6 +4,7 @@ import express from "express";
 import cors from 'cors';
 import { sendPrompt } from "./prompt";
 import { jobSyncDiscordMessagesAndSummarize } from './services';
+import { syncDB } from './services/database';
 
 const app = express();
 const port = process.env.PORT || 80;
@@ -87,6 +88,8 @@ app.post('/prompt', async (req: any, res: any) => {
 
 // Start the server
 (async () => {
+    // sync db
+    await syncDB()
     // start the job to sync discord messages and summarize
     jobSyncDiscordMessagesAndSummarize()
     // start server on port

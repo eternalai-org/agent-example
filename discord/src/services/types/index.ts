@@ -3,6 +3,7 @@ export interface MessageData {
     channel: string;
     id: bigint;
     author: string;
+    author_id: string;
     content: string;
     timestamp: Date;
 }

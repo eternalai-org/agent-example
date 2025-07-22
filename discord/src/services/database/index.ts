@@ -31,6 +31,10 @@ export const DiscordMessages = sequelize.define(
             type: DataTypes.STRING,
             allowNull: false,
         },
+        author_id: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
         bot: {
             type: DataTypes.BOOLEAN,
             allowNull: false,

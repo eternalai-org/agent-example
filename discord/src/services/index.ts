@@ -9,7 +9,7 @@ import { MessageData } from "./types";
 import { chatMessageWithLLM } from "./llm";
 import { Mutex } from "async-mutex";
 
-export const SYNC_TIME_RANGE = 15 * 24 * 60 * 60 * 1000
+export const SYNC_TIME_RANGE = 7 * 24 * 60 * 60 * 1000
 
 const discordMtx = new Mutex()
 
@@ -45,6 +45,7 @@ export const syncDiscordMessagesForChannel = async (serverId: string, channel: a
                     channel: channel.name,
                     id: message.id,
                     author: message.author.username,
+                    author_id: message.author.id,
                     bot: message.author.bot,
                     content: message.content,
                     timestamp: message.createdAt,
@@ -118,7 +119,7 @@ export const analyzeMessages = async (messages: MessageData[]) => {
         `
         Analyze these messages by topic according to the guidelines above:
 
-        ${messages.map((message) => `- ${message.author} : ${message.content}`).join('\n')}
+        ${messages.map((message) => `- ${message.author} <@${message.author_id}> : ${message.content}`).join('\n')}
         `
     )
 }
@@ -166,6 +167,7 @@ export const summarizeMessagesForChannel = async (serverId: string, channelId: s
                 channel: message.dataValues.channel,
                 id: message.dataValues.id,
                 author: message.dataValues.author,
+                author_id: message.dataValues.author_id,
                 content: message.dataValues.content,
                 timestamp: message.dataValues.timestamp,
             })))
@@ -227,9 +229,33 @@ export const summarizeMessagesForAllChannels = async (channelId?: string) => {
     }
 }
 
+export const deleteOldSummaries = async () => {
+    await DiscordSummaries.destroy({
+        where: {
+            to_timestamp: {
+                [Op.lt]: new Date(Date.now() - SYNC_TIME_RANGE),
+            },
+        },
+    })
+    console.log('Deleted old summaries')
+}
+
+export const deleteOldMessages = async () => {
+    await DiscordMessages.destroy({
+        where: {
+            timestamp: {
+                [Op.lt]: new Date(Date.now() - SYNC_TIME_RANGE),
+            },
+        },
+    })
+    console.log('Deleted old messages')
+}
+
 export const jobSyncDiscordMessagesAndSummarize = async () => {
     while (true) {
         try {
+            await deleteOldSummaries()
+            await deleteOldMessages()
             await syncDiscordMessagesForServer()
             await summarizeMessagesForAllChannels()
         } catch (error) {
