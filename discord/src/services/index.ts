@@ -101,35 +101,41 @@ export const syncDiscordChannelsForServer = async (page: Page, serverId: string)
     await discordMtx.runExclusive(async () => {
         try {
             console.log(`Syncing channels for server ${serverId}`)
-            const channels = await getDiscordChannels(page, serverId)
-            await DiscordChannels.destroy({
+            const initedChannel = await DiscordChannels.findOne({
                 where: {
                     server_id: serverId,
                 },
             })
-            for (const channel of channels) {
-
-                const existingChannel = await DiscordChannels.findOne({
+            if (!initedChannel || initedChannel.dataValues.created_at < new Date(Date.now() - 3 * 60 * 1000)) {
+                const channels = await getDiscordChannels(page, serverId)
+                await DiscordChannels.destroy({
                     where: {
-                        id: channel.id,
+                        server_id: serverId,
                     },
                 })
-                if (existingChannel) {
-                    // update channel
-                    await DiscordChannels.update({
-                        name: channel.name,
-                    }, {
+                for (const channel of channels) {
+                    const existedChannel = await DiscordChannels.findOne({
                         where: {
                             id: channel.id,
                         },
                     })
-                } else {
-                    // create channel
-                    await DiscordChannels.create({
-                        id: channel.id,
-                        server_id: serverId,
-                        name: channel.name,
-                    })
+                    if (existedChannel) {
+                        // update channel
+                        await DiscordChannels.update({
+                            name: channel.name,
+                        }, {
+                            where: {
+                                id: channel.id,
+                            },
+                        })
+                    } else {
+                        // create channel
+                        await DiscordChannels.create({
+                            id: channel.id,
+                            server_id: serverId,
+                            name: channel.name,
+                        })
+                    }
                 }
             }
             console.log(`Synced channels for server ${serverId}`)
@@ -359,28 +365,27 @@ export const summarizeMessagesForChannel = async (serverId: string, channelId: s
     })
 }
 
-export const summarizeMessagesForAllChannels = async (channelId?: string) => {
+export const summarizeMessagesForAllChannels = async (serverId?: string, channelId?: string) => {
     try {
-        const botToken = process.env.DISCORD_BOT_TOKEN;
-        const serverId = process.env.DISCORD_SERVER_ID;
-        if (!botToken) {
-            console.log('DISCORD_BOT_TOKEN is not set');
-            return;
-        }
-        if (!serverId) {
-            console.log('DISCORD_SERVER_ID is not set');
-            return;
-        }
         console.log('Summarizing all channels for server', serverId);
-        const channels = await getServerChanels(botToken, serverId);
-        for (const [id, channel] of channels) {
-            if (channelId && id !== channelId) continue;
+        const whereMap: any = {
+        }
+        if (serverId) {
+            whereMap.server_id = serverId
+        }
+        if (channelId) {
+            whereMap.id = channelId
+        }
+        const channels = await DiscordChannels.findAll({
+            where: whereMap,
+        })
+        for (const channel of channels) {
             try {
-                console.log(`Summarizing channel ${channel.name}`);
-                await summarizeMessagesForChannel(serverId, id)
-                console.log(`Summarized channel ${channel.name}`);
+                console.log(`Summarizing channel ${channel.dataValues.name}`);
+                await summarizeMessagesForChannel(channel.dataValues.server_id, channel.dataValues.id)
+                console.log(`Summarized channel ${channel.dataValues.name}`);
             } catch (error) {
-                console.log(`Cannot summarize channel ${channel.name}: ${error}`);
+                console.log(`Cannot summarize channel ${channel.dataValues.name}: ${error}`);
             }
         }
         console.log('Summarized all channels for server', serverId);

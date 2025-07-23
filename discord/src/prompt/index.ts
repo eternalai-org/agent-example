@@ -65,14 +65,12 @@ export const sendPrompt = async (
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
-                            const existingChannels = await DiscordChannels.findOne({
-                                where: {
-                                    server_id: serverId,
-                                },
-                            })
-                            if (!existingChannels || existingChannels.dataValues.created_at < new Date(Date.now() - 30 * 60 * 60 * 1000)) {
-                                await syncDiscordChannelsForServer(page, serverId)
+                            if (callAgentFunc) {
+                                await callAgentFunc(`
+                                    <action>Executing <b>syncing channels</b></action>
+                                `.trim())
                             }
+                            await syncDiscordChannelsForServer(page, serverId)
                             const channels = await DiscordChannels.findAll({
                                 where: {
                                     server_id: serverId,
@@ -151,7 +149,7 @@ export const sendPrompt = async (
                                     <action>Executing <b>summarizing messages</b></action>
                                 `.trim())
                             }
-                            await summarizeMessagesForAllChannels()
+                            await summarizeMessagesForAllChannels(serverId)
                             var fromTimestamp = new Date(Date.now() - SYNC_TIME_RANGE);
                             const whereMap: any = {
                                 server_id: serverId,

@@ -103,6 +103,10 @@ app.post('/prompt', async (req: any, res: any) => {
     await syncDB()
     // init page
     page = await newChromiumPage();
+    // start job
+    (async () => {
+        await jobSyncDiscordMessagesAndSummarize()
+    })();
     // start server on port
     (async () => {
         app.listen(port, () => {

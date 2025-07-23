@@ -11,10 +11,14 @@ export const gotoLoginPageAndWait = async (page: Page) => {
 
 export const checkDiscordAuthorized = async (page: Page) => {
     try {
-        await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
-        await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 5 * 60 * 60 * 1000 });
+        await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 3 * 1000 });
     } catch (error) {
-        throw new Error('Not authorized to Discord');
+        try {
+            await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
+            await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 5 * 60 * 60 * 1000 });
+        } catch (error) {
+            throw new Error('Not authorized to Discord');
+        }
     }
 }
 
@@ -180,6 +184,9 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
                             authorId = messages[messages.length - 1].author_id || ''
                             authorName = messages[messages.length - 1].author_name || ''
                         }
+                        if (!authorName) {
+                            authorName = messages.length > 0 ? messages[messages.length - 1].author : ''
+                        }
                         messages.push({
                             id: messageId,
                             author_id: authorId,
@@ -204,7 +211,7 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
     })
     if (!messageMap[lastId]) {
         // check first message if over 30 days old
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 200; i++) {
             if (messages.length > 0) {
                 if (new Date(messages[0].timestamp).getTime() >= Date.now() - syncTimeRange) {
                     await scroller.evaluate((element) => {
@@ -215,16 +222,13 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
                     messages.sort((a, b) => {
                         return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
                     })
+                    if (messageMap[lastId]) {
+                        break
+                    }
                 } else {
                     break
                 }
             } else {
-                break
-            }
-            if (messages.length % 50 != 0) {
-                break
-            }
-            if (messageMap[lastId]) {
                 break
             }
         }
