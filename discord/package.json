@@ -38,6 +38,7 @@
     "helmet": "^7.1.0",
     "morgan": "^1.10.0",
     "node-cron": "^4.1.1",
+    "playwright": "^1.54.1",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7",
     "winston": "^3.11.0",

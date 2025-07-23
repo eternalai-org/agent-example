@@ -8,6 +8,34 @@ export const sequelize = new Sequelize({
     logging: false,
 });
 
+export const DiscordChannels = sequelize.define(
+    'discord_channels',
+    {
+        id: {
+            type: DataTypes.STRING,
+            primaryKey: true,
+        },
+        server_id: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        name: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        }
+    },
+    {
+        timestamps: true,
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+        indexes: [
+            {
+                fields: ['server_id'],
+            },
+        ]
+    },
+);
+
 export const DiscordMessages = sequelize.define(
     'discord_messages',
     {
@@ -27,11 +55,11 @@ export const DiscordMessages = sequelize.define(
             type: DataTypes.STRING,
             allowNull: false,
         },
-        author: {
+        author_id: {
             type: DataTypes.STRING,
             allowNull: false,
         },
-        author_id: {
+        author: {
             type: DataTypes.STRING,
             allowNull: false,
         },

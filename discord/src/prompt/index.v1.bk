@@ -1,12 +1,10 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText } from 'ai';
-import { z } from "zod";
-import { DiscordChannels, DiscordMessages, DiscordSummaries } from '../services/database';
+import { number, z } from "zod";
+import { DiscordSummaries } from '../services/database';
 import { Op } from 'sequelize';
-import { summarizeMessagesForAllChannels, syncDiscordChannelsForServer, syncDiscordMessagesForChannel, syncDiscordMessagesForServer } from '../services';
-import { Page } from 'playwright';
-import { getDiscordChannels, getDiscordMessagesForChannel } from '../services/playwright';
-import { SYNC_TIME_RANGE } from '../services/types';
+import { summarizeMessagesForAllChannels, summarizeMessagesForChannel, SYNC_TIME_RANGE, syncDiscordMessagesForChannel, syncDiscordMessagesForServer } from '../services';
+import { getRecentMessages, getServerChanels } from '../services/discord';
 
 const clientOpenAI = createOpenAI({
     name: process.env.LLM_MODEL_ID || 'gpt-4o-mini',
@@ -15,13 +13,13 @@ const clientOpenAI = createOpenAI({
 });
 
 export const sendPrompt = async (
-    page: Page | null,
-    request: { env: any, messages: any[] },
+    request: { messages: any[] },
     callAgentFunc: (delta: string) => Promise<void>
 ): Promise<any> => {
     try {
-        const serverId = (request.env && request.env.DISCORD_SERVER_ID) ? request.env.DISCORD_SERVER_ID : (process.env.DISCORD_SERVER_ID || '');
-        if (!serverId) {
+        const botToken = process.env.DISCORD_BOT_TOKEN as string;
+        const serverId = process.env.DISCORD_SERVER_ID as string;
+        if (!serverId || !botToken) {
             throw new Error('Environment variables are not set');
         }
         const { textStream } = streamText({
@@ -62,26 +60,12 @@ export const sendPrompt = async (
                     execute: async (args) => {
                         console.log('getAllChannels', args)
                         try {
-                            if (!page) {
-                                throw new Error('Page is not initialized');
-                            }
-                            const existingChannels = await DiscordChannels.findOne({
-                                where: {
-                                    server_id: serverId,
-                                },
-                            })
-                            if (!existingChannels || existingChannels.dataValues.created_at < new Date(Date.now() - 30 * 60 * 60 * 1000)) {
-                                await syncDiscordChannelsForServer(page, serverId)
-                            }
-                            const channels = await DiscordChannels.findAll({
-                                where: {
-                                    server_id: serverId,
-                                },
-                            });
-                            return channels.map((channel) => {
+                            const channels = await getServerChanels(botToken, serverId);
+                            return channels.map((channel: any) => {
                                 return {
-                                    id: channel.dataValues.id,
-                                    name: channel.dataValues.name,
+                                    channel_id: channel.id,
+                                    channel_name: channel.name,
+                                    type: channel.type,
                                 }
                             });
                         } catch (error) {
@@ -97,32 +81,8 @@ export const sendPrompt = async (
                     execute: async (args: { channel_id: string }) => {
                         console.log('getRecentMessages', args)
                         try {
-                            if (!page) {
-                                throw new Error('Page is not initialized');
-                            }
-                            if (callAgentFunc) {
-                                await callAgentFunc(`
-                                    <action>Executing <b>syncing messages</b></action>
-                                `.trim())
-                            }
-                            await syncDiscordMessagesForChannel(page, serverId, args.channel_id)
-                            const messages = await DiscordMessages.findAll({
-                                where: {
-                                    server_id: serverId,
-                                    channel_id: args.channel_id,
-                                },
-                                order: [['timestamp', 'DESC']],
-                                limit: 100,
-                            });
-                            messages.reverse()
-                            return messages.map((message) => {
-                                return {
-                                    id: message.dataValues.id,
-                                    author: message.dataValues.author,
-                                    content: message.dataValues.content,
-                                    timestamp: message.dataValues.timestamp,
-                                }
-                            });
+                            const messages = await getRecentMessages(botToken, serverId, args.channel_id);
+                            return messages;
                         } catch (error) {
                             console.log('getRecentMessages error', error)
                             return `Error ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -133,26 +93,12 @@ export const sendPrompt = async (
                     description: 'Get summaries of channel messages grouped by topic and time range. Each summary includes the number of messages and users discussing each topic.',
                     parameters: z.object({
                         channel_id: z.string().optional().describe('The channel id to get the summaries for. The channel id is the id of the channel in the server. If not provided, all channels will be returned.'),
+                        // duration: z.number().default(360).describe('The duration is the number of hours to get the summaries for. The default is 360 hours (7 days).'),
                     }),
-                    execute: async (args: { channel_id: string }) => {
+                    execute: async (args: { channel_id: string, duration: number }) => {
                         console.log('getDiscordSummaries', args)
                         try {
-                            if (!page) {
-                                throw new Error('Page is not initialized');
-                            }
-                            if (callAgentFunc) {
-                                await callAgentFunc(`
-                                    <action>Executing <b>syncing messages</b></action>
-                                `.trim())
-                            }
-                            await syncDiscordMessagesForServer(page, serverId)
-                            if (callAgentFunc) {
-                                await callAgentFunc(`
-                                    <action>Executing <b>summarizing messages</b></action>
-                                `.trim())
-                            }
-                            await summarizeMessagesForAllChannels()
-                            var fromTimestamp = new Date(Date.now() - SYNC_TIME_RANGE);
+                            var fromTimestamp = new Date(Date.now() - (args.duration * 60 * 60 * 1000 || SYNC_TIME_RANGE));
                             const whereMap: any = {
                                 server_id: serverId,
                                 to_timestamp: {
@@ -166,16 +112,12 @@ export const sendPrompt = async (
                                 where: whereMap,
                                 order: [['to_timestamp', 'ASC']],
                             });
-                            const channels = await DiscordChannels.findAll({
-                                where: {
-                                    server_id: serverId,
-                                },
-                            });
+                            const channels = await getServerChanels(botToken, serverId);
                             return {
                                 channels: channels.map((channel: any) => {
                                     return {
-                                        id: channel.dataValues.id,
-                                        name: channel.dataValues.name,
+                                        channel_id: channel.id,
+                                        channel_name: channel.name,
                                     }
                                 }),
                                 summaries: summaries.map((summary) => {

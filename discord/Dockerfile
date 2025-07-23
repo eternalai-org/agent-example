@@ -17,8 +17,11 @@ COPY ./ ./
 
 RUN npm run build
 RUN npm rebuild sqlite3 --build-from-source
+RUN npm playwright install
 
 ENV STORAGE_PATH=/storage
+
+EXPOSE 8080
 
 # Start the application
 CMD ["yarn", "start"]

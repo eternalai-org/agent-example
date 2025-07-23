@@ -2,6 +2,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { sendPrompt } from "./prompt";
 import readline from 'readline';
+import { Page } from 'playwright';
+import { newChromiumPage } from './services';
+import { syncDB } from './services/database';
 
 // Create readline interface
 const rl = readline.createInterface({
@@ -11,8 +14,14 @@ const rl = readline.createInterface({
 
 var messages: any[] = [];
 
+var page: Page | null = null
+
 // Function to prompt user in a loop
 async function promptUser() {
+    if (!page) {
+        await syncDB()
+        page = await newChromiumPage()
+    }
     rl.question('Enter something (type "exit" to quit): ', async (input: string) => {
         if (input === 'exit') {
             rl.close();
@@ -26,7 +35,9 @@ async function promptUser() {
                 process.stdout.write(delta);
             }
             const textStream = await sendPrompt(
+                page,
                 {
+                    env: process.env,
                     messages: messages,
                 },
                 callAgentFunc,

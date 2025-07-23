@@ -3,11 +3,14 @@ dotenv.config();
 import express from "express";
 import cors from 'cors';
 import { sendPrompt } from "./prompt";
-import { jobSyncDiscordMessagesAndSummarize } from './services';
+import { jobSyncDiscordMessagesAndSummarize, newChromiumPage } from './services';
 import { syncDB } from './services/database';
+import { Page } from 'playwright';
 
 const app = express();
 const port = process.env.PORT || 80;
+
+var page: Page | null = null
 
 // app use cors all origin
 app.use(cors({
@@ -18,6 +21,14 @@ app.use(cors({
 
 // Middleware to parse JSON bodies
 app.use(express.json());
+
+app.get('/processing-url', (req: any, res: any) => {
+    const returnUrl = new URL(`http://localhost:${process.env.WEB_PORT || 8080}`);
+    res.json({
+        url: returnUrl,
+        status: "ready",
+    });
+});
 
 // Route for handling prompts
 app.post('/prompt', async (req: any, res: any) => {
@@ -44,7 +55,7 @@ app.post('/prompt', async (req: any, res: any) => {
         const callAgentFunc = async (delta: string) => {
             writeDelta(delta)
         }
-        const textStream = await sendPrompt(req.body, callAgentFunc);
+        const textStream = await sendPrompt(page, req.body, callAgentFunc);
         const pingFunc = async () => {
             const message = {
                 choices: [
@@ -90,10 +101,17 @@ app.post('/prompt', async (req: any, res: any) => {
 (async () => {
     // sync db
     await syncDB()
-    // start the job to sync discord messages and summarize
-    jobSyncDiscordMessagesAndSummarize()
+    // init page
+    page = await newChromiumPage();
     // start server on port
-    app.listen(port, () => {
-        console.log(`Server is running on port ${port}`);
-    });
+    (async () => {
+        app.listen(port, () => {
+            console.log(`Server is running on port ${port}`);
+        });
+    })();
+    (async () => {
+        app.listen(8080, () => {
+            console.log(`Server is running on port 8080`);
+        });
+    })();
 })()

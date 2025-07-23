@@ -1,93 +1,243 @@
 import { Message } from "discord.js";
-import { DiscordMessages, DiscordSummaries } from "./database";
+import { DiscordChannels, DiscordMessages, DiscordSummaries } from "./database";
 import { getServerChanels } from "./discord";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { Op } from "sequelize";
 import { convertDateToSnowflakeID, removeThinking } from "./helpers";
-import { MessageData } from "./types";
+import { MessageData, SYNC_TIME_RANGE } from "./types";
 import { chatMessageWithLLM } from "./llm";
 import { Mutex } from "async-mutex";
-
-export const SYNC_TIME_RANGE = 7 * 24 * 60 * 60 * 1000
+import { getDiscordChannels, getDiscordMessagesForChannel } from "./playwright";
+import { chromium, Page } from "playwright";
 
 const discordMtx = new Mutex()
 
-export const syncDiscordMessagesForChannel = async (serverId: string, channel: any) => {
-    console.log('syncDiscordMessagesForChannel', serverId, channel.id)
+export const newChromiumPage = async () => {
+    const browser = await chromium.launch({ headless: false });
+    const page = await browser.newPage()
+    await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
+    return page
+}
+
+// export const syncDiscordMessagesForChannel = async (serverId: string, channel: any) => {
+//     console.log('syncDiscordMessagesForChannel', serverId, channel.id)
+//     await discordMtx.runExclusive(async () => {
+//         while (true) {
+//             const msg = await DiscordMessages.findOne(
+//                 {
+//                     where: {
+//                         channel_id: channel.id,
+//                     },
+//                     order: [['id', 'DESC']],
+//                 }
+//             )
+//             var lastId = convertDateToSnowflakeID(new Date(new Date().getTime() - SYNC_TIME_RANGE))
+//             if (msg) {
+//                 const msgId = msg.dataValues.id as string
+//                 if (lastId < msgId) {
+//                     lastId = msgId
+//                 }
+//             }
+//             const messages = await channel.messages.fetch({
+//                 limit: 100,
+//                 after: lastId,
+//             });
+//             if (messages.size === 0) break;
+//             for (var i = messages.size - 1; i >= 0; i--) {
+//                 const message = messages.at(i) as Message;
+//                 const msgData = {
+//                     server_id: serverId,
+//                     channel_id: channel.id,
+//                     channel: channel.name,
+//                     id: message.id,
+//                     author: message.author.username,
+//                     author_id: message.author.id,
+//                     bot: message.author.bot,
+//                     content: message.content,
+//                     timestamp: message.createdAt,
+//                 }
+//                 try {
+//                     await DiscordMessages.create(
+//                         msgData
+//                     )
+//                 } catch (error) {
+//                 }
+//                 console.log('msgData', msgData)
+//             }
+//             if (messages.size < 100) break;
+//             await new Promise((resolve) => setTimeout(resolve, 500));
+//         }
+//     })
+// }
+
+// export const syncDiscordMessagesForServer = async (channelId?: string) => {
+//     const botToken = process.env.DISCORD_BOT_TOKEN;
+//     const serverId = process.env.DISCORD_SERVER_ID;
+//     if (!botToken) {
+//         console.log('DISCORD_BOT_TOKEN is not set');
+//         return;
+//     }
+//     if (!serverId) {
+//         console.log('DISCORD_SERVER_ID is not set');
+//         return;
+//     }
+//     console.log(`Syncing messages for server ${serverId}`);
+//     const channels = await getServerChanels(botToken, serverId);
+//     for (const [id, channel] of channels) {
+//         if (channelId && id !== channelId) continue;
+//         try {
+//             console.log(`Syncing messages for channel ${channel.name}`);
+//             await syncDiscordMessagesForChannel(serverId, channel)
+//             console.log(`Synced messages for channel ${channel.name}`);
+//         } catch (error) {
+//             console.log(`Cannot sync messages for channel ${channel.name}: ${error}`);
+//         }
+//     }
+//     console.log(`Synced messages for server ${serverId}`);
+// }
+
+export const syncDiscordChannelsForServer = async (page: Page, serverId: string) => {
     await discordMtx.runExclusive(async () => {
-        while (true) {
-            const msg = await DiscordMessages.findOne(
-                {
-                    where: {
-                        channel_id: channel.id,
-                    },
-                    order: [['id', 'DESC']],
-                }
-            )
-            var lastId = convertDateToSnowflakeID(new Date(new Date().getTime() - SYNC_TIME_RANGE))
-            if (msg) {
-                const msgId = msg.dataValues.id as string
-                if (lastId < msgId) {
-                    lastId = msgId
-                }
-            }
-            const messages = await channel.messages.fetch({
-                limit: 100,
-                after: lastId,
-            });
-            if (messages.size === 0) break;
-            for (var i = messages.size - 1; i >= 0; i--) {
-                const message = messages.at(i) as Message;
-                const msgData = {
+        try {
+            console.log(`Syncing channels for server ${serverId}`)
+            const channels = await getDiscordChannels(page, serverId)
+            await DiscordChannels.destroy({
+                where: {
                     server_id: serverId,
-                    channel_id: channel.id,
-                    channel: channel.name,
-                    id: message.id,
-                    author: message.author.username,
-                    author_id: message.author.id,
-                    bot: message.author.bot,
-                    content: message.content,
-                    timestamp: message.createdAt,
+                },
+            })
+            for (const channel of channels) {
+
+                const existingChannel = await DiscordChannels.findOne({
+                    where: {
+                        id: channel.id,
+                    },
+                })
+                if (existingChannel) {
+                    // update channel
+                    await DiscordChannels.update({
+                        name: channel.name,
+                    }, {
+                        where: {
+                            id: channel.id,
+                        },
+                    })
+                } else {
+                    // create channel
+                    await DiscordChannels.create({
+                        id: channel.id,
+                        server_id: serverId,
+                        name: channel.name,
+                    })
                 }
-                try {
-                    await DiscordMessages.create(
-                        msgData
-                    )
-                } catch (error) {
-                }
-                console.log('msgData', msgData)
             }
-            if (messages.size < 100) break;
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            console.log(`Synced channels for server ${serverId}`)
+        } catch (error) {
+            console.log(`Cannot sync channels for server ${serverId}: ${error}`);
         }
     })
 }
 
-export const syncDiscordMessagesForServer = async (channelId?: string) => {
-    const botToken = process.env.DISCORD_BOT_TOKEN;
-    const serverId = process.env.DISCORD_SERVER_ID;
-    if (!botToken) {
-        console.log('DISCORD_BOT_TOKEN is not set');
-        return;
-    }
-    if (!serverId) {
-        console.log('DISCORD_SERVER_ID is not set');
-        return;
-    }
-    console.log(`Syncing messages for server ${serverId}`);
-    const channels = await getServerChanels(botToken, serverId);
-    for (const [id, channel] of channels) {
-        if (channelId && id !== channelId) continue;
+export const syncDiscordMessagesForChannel = async (page: Page, serverId: string, channelId: string) => {
+    await discordMtx.runExclusive(async () => {
         try {
-            console.log(`Syncing messages for channel ${channel.name}`);
-            await syncDiscordMessagesForChannel(serverId, channel)
-            console.log(`Synced messages for channel ${channel.name}`);
+            console.log(`Syncing messages for channel ${channelId}`)
+            // delete old messages
+            await DiscordMessages.destroy({
+                where: {
+                    server_id: serverId,
+                    channel_id: channelId,
+                    timestamp: {
+                        [Op.lt]: new Date(Date.now() - SYNC_TIME_RANGE),
+                    },
+                },
+            })
+            const channel = await DiscordChannels.findOne({
+                where: {
+                    id: channelId,
+                    server_id: serverId,
+                },
+            })
+            if (!channel) {
+                throw new Error(`Channel ${channelId} not found`)
+            }
+            var lastId = 'none'
+            const existingMessages = await DiscordMessages.findOne({
+                where: {
+                    server_id: serverId,
+                    channel_id: channelId,
+                },
+                order: [['id', 'DESC']],
+            })
+            if (existingMessages) {
+                lastId = existingMessages.dataValues.id
+            }
+            const messages = await getDiscordMessagesForChannel(page, serverId, channelId, lastId, SYNC_TIME_RANGE)
+            for (const message of messages) {
+                try {
+                    const existingMessage = await DiscordMessages.findOne({
+                        where: {
+                            id: message.id,
+                        },
+                    })
+                    if (existingMessage) {
+                        await DiscordMessages.update({
+                            server_id: serverId,
+                            channel_id: channel.dataValues.id,
+                            channel: channel.dataValues.name,
+                            author: message.author,
+                            author_id: message.author_id,
+                            content: message.content,
+                            timestamp: new Date(message.timestamp),
+                            bot: false,
+                        }, {
+                            where: {
+                                id: message.id,
+                            },
+                        })
+                    } else {
+                        await DiscordMessages.create({
+                            server_id: serverId,
+                            channel_id: channel.dataValues.id,
+                            channel: channel.dataValues.name,
+                            id: message.id,
+                            author: message.author,
+                            author_id: message.author_id,
+                            content: message.content,
+                            timestamp: new Date(message.timestamp),
+                            bot: false,
+                        })
+                    }
+                } catch (error) {
+                    console.log(`Cannot sync message ${message.id}: ${error}`);
+                }
+            }
+            console.log(`Synced messages for channel ${channelId}`)
         } catch (error) {
-            console.log(`Cannot sync messages for channel ${channel.name}: ${error}`);
+            console.log(`Cannot sync messages for channel ${channelId}: ${error}`);
         }
+    })
+}
+
+export const syncDiscordMessagesForServer = async (page: Page, serverId: string) => {
+    try {
+        console.log(`Syncing messages for server ${serverId}`)
+        const channels = await DiscordChannels.findAll({
+            where: {
+                server_id: serverId,
+            },
+        })
+        for (const channel of channels) {
+            try {
+                await syncDiscordMessagesForChannel(page, serverId, channel.dataValues.id)
+            } catch (error) {
+            }
+        }
+        console.log(`Synced messages for server ${serverId}`)
+    } catch (error) {
+        console.log(`Cannot sync messages for server ${serverId}: ${error}`);
     }
-    console.log(`Synced messages for server ${serverId}`);
 }
 
 export const analyzeMessages = async (messages: MessageData[]) => {
@@ -127,6 +277,16 @@ export const analyzeMessages = async (messages: MessageData[]) => {
 export const summarizeMessagesForChannel = async (serverId: string, channelId: string) => {
     console.log('summarizeMessagesForChannel', serverId, channelId)
     await discordMtx.runExclusive(async () => {
+        // delete old summaries
+        await DiscordSummaries.destroy({
+            where: {
+                server_id: serverId,
+                channel_id: channelId,
+                to_timestamp: {
+                    [Op.lt]: new Date(Date.now() - SYNC_TIME_RANGE),
+                },
+            },
+        })
         while (true) {
             var lastId: string | undefined;
             const summary = await DiscordSummaries.findOne({
@@ -267,7 +427,7 @@ export const jobSyncDiscordMessagesAndSummarize = async () => {
         try {
             await deleteOldSummaries()
             await deleteOldMessages()
-            await syncDiscordMessagesForServer()
+            // await syncDiscordMessagesForServer()
             await summarizeMessagesForAllChannels()
             console.log('Synced discord messages and summarized')
         } catch (error) {
