@@ -8,7 +8,7 @@ import { convertDateToSnowflakeID, removeThinking } from "./helpers";
 import { MessageData, SYNC_TIME_RANGE } from "./types";
 import { chatMessageWithLLM } from "./llm";
 import { Mutex } from "async-mutex";
-import { getDiscordChannels, getDiscordMessagesForChannel } from "./playwright";
+import { getDiscordChannels, getDiscordMessagesForChannel, postMessageToChannel } from "./playwright";
 import { chromium, LaunchOptions, Page } from "playwright";
 
 const discordMtx = new Mutex()
@@ -24,6 +24,9 @@ export const newChromiumPage = async () => {
     while (true) {
         try {
             await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 10 * 1000 });
+            if (process.env.DISCORD_SERVER_ID) {
+                await page.goto(`https://discord.com/channels/${process.env.DISCORD_SERVER_ID}`, { waitUntil: 'networkidle' });
+            }
             break
         } catch (error) {
             try {
@@ -114,7 +117,7 @@ export const newChromiumPage = async () => {
 //     console.log(`Synced messages for server ${serverId}`);
 // }
 
-export const postMessageToChannel = async (page: Page, serverId: string, channelId: string, message: string) => {
+export const postDiscordMessage = async (page: Page, serverId: string, channelId: string, message: string) => {
     await discordMtx.runExclusive(async () => {
         await postMessageToChannel(page, serverId, channelId, message)
     })

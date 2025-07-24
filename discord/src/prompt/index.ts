@@ -3,7 +3,7 @@ import { streamText } from 'ai';
 import { z } from "zod";
 import { DiscordChannels, DiscordMessages, DiscordSummaries } from '../services/database';
 import { Op } from 'sequelize';
-import { postMessageToChannel, summarizeMessagesForAllChannels, syncDiscordChannelsForServer, syncDiscordMessagesForChannel, syncDiscordMessagesForServer } from '../services';
+import { postDiscordMessage, summarizeMessagesForAllChannels, syncDiscordChannelsForServer, syncDiscordMessagesForChannel, syncDiscordMessagesForServer } from '../services';
 import { Page } from 'playwright';
 import { getDiscordChannels, getDiscordMessagesForChannel } from '../services/playwright';
 import { SYNC_TIME_RANGE } from '../services/types';
@@ -150,7 +150,7 @@ export const sendPrompt = async (
                                     <action>Executing <b>posting message to channel</b></action>
                                 `.trim())
                             }
-                            await postMessageToChannel(page, serverId, args.channel_id, args.message)
+                            await postDiscordMessage(page, serverId, args.channel_id, args.message)
                             return `Message posted to channel ${args.channel_id}`
                         } catch (error) {
                             return `Error ${error instanceof Error ? error.message : 'Unknown error'}`
