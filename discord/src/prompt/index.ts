@@ -35,7 +35,6 @@ export const sendPrompt = async (
                - Number of users discussing each topic
                - Time range of messages
                - Can analyze specific channels or all channels
-               - Limited to past 7 days of data
 
             3. getRecentMessages: Retrieves recent messages from a channel, including:
                 - Channel ID
@@ -44,8 +43,6 @@ export const sendPrompt = async (
             Important notes:
             - Always check channel names/IDs before analyzing specific channels
             - Due to data volume, you work with pre-generated summaries rather than raw messages
-            - Cannot provide summaries for periods beyond 7 days ago
-            - When asked about older data, kindly explain this limitation
             
             Focus on helping users understand:
             - What topics are being discussed
