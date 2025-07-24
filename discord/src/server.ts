@@ -23,7 +23,7 @@ app.use(cors({
 app.use(express.json());
 
 app.get('/processing-url', (req: any, res: any) => {
-    const returnUrl = new URL(`http://localhost:${process.env.WEB_PORT || 8080}`);
+    const returnUrl = new URL(process.env.HTTP_DISPLAY_URL || "http://localhost:6080/vnc.html?autoconnect=true&resize=scale&reconnect_delay=1000&reconnect=1");
     res.json({
         url: returnUrl,
         status: "ready",
@@ -108,14 +108,7 @@ app.post('/prompt', async (req: any, res: any) => {
         await jobSyncDiscordMessagesAndSummarize()
     })();
     // start server on port
-    (async () => {
-        app.listen(port, () => {
-            console.log(`Server is running on port ${port}`);
-        });
-    })();
-    (async () => {
-        app.listen(8080, () => {
-            console.log(`Server is running on port 8080`);
-        });
-    })();
+    app.listen(port, () => {
+        console.log(`Server is running on port ${port}`);
+    });
 })()

@@ -17,6 +17,19 @@ export const newChromiumPage = async () => {
     const browser = await chromium.launch({ headless: false });
     const page = await browser.newPage()
     await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
+    while (true) {
+        try {
+            await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 10 * 1000 });
+            break
+        } catch (error) {
+            try {
+                await page.waitForSelector('[name="email"]', { timeout: 10 * 1000 });
+                break
+            } catch (error) {
+                await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
+            }
+        }
+    }
     return page
 }
 

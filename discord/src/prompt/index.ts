@@ -21,9 +21,6 @@ export const sendPrompt = async (
 ): Promise<any> => {
     try {
         const serverId = (request.env && request.env.DISCORD_SERVER_ID) ? request.env.DISCORD_SERVER_ID : (process.env.DISCORD_SERVER_ID || '');
-        if (!serverId) {
-            throw new Error('Environment variables are not set');
-        }
         const { textStream } = streamText({
             model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
             maxSteps: 25,
@@ -62,6 +59,9 @@ export const sendPrompt = async (
                     execute: async (args) => {
                         console.log('getAllChannels', args)
                         try {
+                            if (!serverId) {
+                                throw new Error('DISCORD_SERVER_ID is not set');
+                            }
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
@@ -95,6 +95,9 @@ export const sendPrompt = async (
                     execute: async (args: { channel_id: string }) => {
                         console.log('getRecentMessages', args)
                         try {
+                            if (!serverId) {
+                                throw new Error('DISCORD_SERVER_ID is not set');
+                            }
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
@@ -135,6 +138,9 @@ export const sendPrompt = async (
                     execute: async (args: { channel_id: string }) => {
                         console.log('getDiscordSummaries', args)
                         try {
+                            if (!serverId) {
+                                throw new Error('DISCORD_SERVER_ID is not set');
+                            }
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
