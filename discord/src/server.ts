@@ -108,24 +108,21 @@ app.post('/prompt', async (req: any, res: any) => {
         await jobSyncDiscordMessagesAndSummarize()
     })();
     // Handle process exit
+    const gracefulShutdown = async () => {
+        if (page) {
+            const context = page.context();
+            await page.close();
+            await context.close();
+        }
+        process.exit(0);
+    };
     process.on('SIGTERM', async () => {
         console.log('SIGTERM received. Shutting down gracefully...');
-        if (page) {
-            const context = page.context();
-            await page.close();
-            await context.close();
-        }
-        process.exit(0);
+        await gracefulShutdown();
     });
-
     process.on('SIGINT', async () => {
         console.log('SIGINT received. Shutting down gracefully...');
-        if (page) {
-            const context = page.context();
-            await page.close();
-            await context.close();
-        }
-        process.exit(0);
+        await gracefulShutdown();
     });
     // start server on port
     app.listen(port, () => {
