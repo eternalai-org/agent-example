@@ -11,11 +11,11 @@ export const gotoLoginPageAndWait = async (page: Page) => {
 
 export const checkDiscordAuthorized = async (page: Page) => {
     try {
-        await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 3 * 1000 });
+        await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 10 * 1000 });
     } catch (error) {
         try {
             await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
-            await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 5 * 60 * 60 * 1000 });
+            await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 10 * 1000 });
         } catch (error) {
             throw new Error('Not authorized to Discord');
         }
@@ -74,7 +74,7 @@ export const getDiscordChannels = async (page: Page, serverId: string) => {
     await channelScroller.evaluate((element) => {
         element.scrollTo({ top: 0, behavior: 'smooth' });
     });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
     const channels: any[] = []
     const channelMap: any = {}
     const loadChannels = async () => {
@@ -110,7 +110,7 @@ export const getDiscordChannels = async (page: Page, serverId: string) => {
         await channelScroller.evaluate((element, scrollPosition) => {
             element.scrollTo({ top: scrollPosition, behavior: 'smooth' });
         }, scrollPosition);
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(1500);
         await loadChannels()
         if (scrollPosition >= scrollHeight) {
             break
@@ -152,7 +152,7 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
     await scroller.evaluate((element) => {
         element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
     });
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
     var messages: any[] = []
     var messageMap: any = {}
     const getMessages = async (messagesWrapper: ElementHandle) => {
@@ -211,19 +211,30 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
     })
     if (!messageMap[lastId]) {
         // check first message if over 30 days old
+        var retryCount = 0
         for (let i = 0; i < 200; i++) {
+            const lastMessageLength = messages.length
             if (messages.length > 0) {
                 if (new Date(messages[0].timestamp).getTime() >= Date.now() - syncTimeRange) {
                     await scroller.evaluate((element) => {
                         element.scrollTo({ top: 0, behavior: 'smooth' });
                     });
-                    await page.waitForTimeout(1000);
+                    await page.waitForTimeout(1500);
                     await getMessages(messagesWrapper)
                     messages.sort((a, b) => {
                         return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
                     })
                     if (messageMap[lastId]) {
                         break
+                    }
+                    if (messages.length == lastMessageLength) {
+                        retryCount++
+                        if (retryCount >= 3) {
+                            break
+                        }
+                        i--
+                    } else {
+                        retryCount = 0
                     }
                 } else {
                     break
