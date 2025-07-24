@@ -256,7 +256,14 @@ export const postMessageToChannel = async (page: Page, serverId: string, channel
             throw new Error('Failed to find chat input')
         }
         await chatInput.click();
-        await page.keyboard.type(message);
+        const messages = message.split('\n')
+        for (let index = 0; index < messages.length; index++) {
+            const content = messages[index];
+            await page.keyboard.type(content);
+            if (index != messages.length - 1) {
+                await page.keyboard.press('Shift+Enter');
+            }
+        }
         await page.keyboard.press('Enter');
     })
 }
