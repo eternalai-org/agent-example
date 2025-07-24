@@ -210,7 +210,7 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
         if (!messageMap[lastId]) {
             // check first message if over 30 days old
             var retryCount = 0
-            for (let i = 0; i < 200; i++) {
+            for (let i = 0; i < 100; i++) {
                 const lastMessageLength = messages.length
                 if (messages.length > 0) {
                     if (new Date(messages[0].timestamp).getTime() >= Date.now() - syncTimeRange) {
