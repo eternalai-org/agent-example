@@ -107,6 +107,26 @@ app.post('/prompt', async (req: any, res: any) => {
     (async () => {
         await jobSyncDiscordMessagesAndSummarize()
     })();
+    // Handle process exit
+    process.on('SIGTERM', async () => {
+        console.log('SIGTERM received. Shutting down gracefully...');
+        if (page) {
+            const context = page.context();
+            await page.close();
+            await context.close();
+        }
+        process.exit(0);
+    });
+
+    process.on('SIGINT', async () => {
+        console.log('SIGINT received. Shutting down gracefully...');
+        if (page) {
+            const context = page.context();
+            await page.close();
+            await context.close();
+        }
+        process.exit(0);
+    });
     // start server on port
     app.listen(port, () => {
         console.log(`Server is running on port ${port}`);
