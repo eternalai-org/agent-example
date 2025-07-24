@@ -1,0 +1,26 @@
+FROM node:24
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    ca-certificates \
+    python3-xdg \
+    xvfb \
+    x11vnc \
+    openbox \
+    procps \
+    xdg-utils \
+    x11-xserver-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/novnc/noVNC.git /opt/novnc
+RUN git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify
+RUN chmod +x /opt/novnc/utils/novnc_proxy
+
+WORKDIR /app
+
+RUN npm init -y
+RUN npm install playwright@1.54.1
+RUN npx playwright install-deps chromium
+RUN npx playwright install chromium

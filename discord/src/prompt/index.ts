@@ -113,7 +113,7 @@ export const sendPrompt = async (
                                     channel_id: args.channel_id,
                                 },
                                 order: [['timestamp', 'DESC']],
-                                limit: 100,
+                                limit: 200,
                             });
                             messages.reverse()
                             return messages.map((message) => {

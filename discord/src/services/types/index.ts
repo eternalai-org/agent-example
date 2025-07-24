@@ -1,4 +1,4 @@
-export const SYNC_TIME_RANGE = 7 * 24 * 60 * 60 * 1000
+export const SYNC_TIME_RANGE = 3 * 24 * 60 * 60 * 1000
 
 export interface MessageData {
     channel_id: bigint;

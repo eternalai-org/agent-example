@@ -1,32 +1,14 @@
-from node:24
+FROM eternalpersonalagi/node24-browser-use-template:latest
 
-env DEBIAN_FRONTEND=noninteractive
-
-run apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    ca-certificates \
-    python3-xdg \
-    xvfb \
-    x11vnc \
-    openbox \
-    procps \
-    xdg-utils \
-    x11-xserver-utils \
-    && rm -rf /var/lib/apt/lists/*
-
-run git clone https://github.com/novnc/noVNC.git /opt/novnc
-run git clone https://github.com/novnc/websockify /opt/novnc/utils/websockify
-run chmod +x /opt/novnc/utils/novnc_proxy
-
-env DISPLAY=:99
-env XDG_SESSION_TYPE=x11
-env GDK_SCALE=1
-env GDK_DPI_SCALE=1
-env BROWSER_WINDOW_SIZE_WIDTH=1440
-env BROWSER_WINDOW_SIZE_HEIGHT=1440
-env SCREEN_COLOR_DEPTH_BITS=24
-env NO_VNC_PORT=6080
-env CHROME_DEBUG_PORT=9222
+ENV DISPLAY=:99
+ENV XDG_SESSION_TYPE=x11
+ENV GDK_SCALE=1
+ENV GDK_DPI_SCALE=1
+ENV BROWSER_WINDOW_SIZE_WIDTH=1440
+ENV BROWSER_WINDOW_SIZE_HEIGHT=1440
+ENV SCREEN_COLOR_DEPTH_BITS=24
+ENV NO_VNC_PORT=6080
+ENV CHROME_DEBUG_PORT=9222
 
 WORKDIR /app
 
@@ -35,8 +17,6 @@ COPY ./package.json ./
 
 # Install dependencies
 RUN npm install
-RUN npx playwright install chromium
-RUN npx playwright install-deps chromium
 
 # Copy source files
 COPY ./ ./
