@@ -1,5 +1,8 @@
 import { ElementHandle, Page } from "playwright";
 import { SYNC_TIME_RANGE } from "../types";
+import { Mutex } from "async-mutex";
+
+const discordMtx = new Mutex()
 
 export const gotoLoginPageAndWait = async (page: Page) => {
     try {
@@ -67,182 +70,193 @@ export const getAllServers = async (page: Page) => {
 }
 
 export const getDiscordChannels = async (page: Page, serverId: string) => {
-    await checkDiscordAuthorized(page)
-    await page.goto(`https://discord.com/channels/${serverId}`);
-    await page.waitForSelector('#channels', { timeout: 30 * 1000 });
-    const channelScroller: ElementHandle = (await page.$$('#channels'))[0]
-    await channelScroller.evaluate((element) => {
-        element.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-    await page.waitForTimeout(1500);
     const channels: any[] = []
-    const channelMap: any = {}
-    const loadChannels = async () => {
-        const containerDefaultElements: ElementHandle[] = await page.$$('li')
-        for (const containerDefaultElement of containerDefaultElements) {
-            const aElements: ElementHandle[] = await containerDefaultElement.$$('a')
-            for (const aElement of aElements) {
-                const href = await aElement.getAttribute('href')
-                if (href?.includes(`/channels/${serverId}/`)) {
-                    const channelId = href.split('/').pop() || ''
-                    if (!channelMap[channelId]) {
-                        channelMap[channelId] = true
-                        const channelName = await aElement.textContent()
-                        channels.push({
-                            id: channelId,
-                            name: channelName,
-                        })
+    await discordMtx.runExclusive(async () => {
+        await checkDiscordAuthorized(page)
+        await page.goto(`https://discord.com/channels/${serverId}`);
+        await page.waitForSelector('#channels', { timeout: 30 * 1000 });
+        const channelScroller: ElementHandle | null = await page.$('#channels')
+        if (!channelScroller) {
+            throw new Error('Failed to find channel scroller')
+        }
+        await channelScroller.evaluate((element) => {
+            element.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        await page.waitForTimeout(1500);
+        const channelMap: any = {}
+        const loadChannels = async () => {
+            const containerDefaultElements: ElementHandle[] = await page.$$('li')
+            for (const containerDefaultElement of containerDefaultElements) {
+                const aElements: ElementHandle[] = await containerDefaultElement.$$('a')
+                for (const aElement of aElements) {
+                    const href = await aElement.getAttribute('href')
+                    if (href?.includes(`/channels/${serverId}/`)) {
+                        const channelId = href.split('/').pop() || ''
+                        if (!channelMap[channelId]) {
+                            channelMap[channelId] = true
+                            const channelName = await aElement.textContent()
+                            channels.push({
+                                id: channelId,
+                                name: channelName,
+                            })
+                        }
                     }
                 }
             }
         }
-    }
-    await loadChannels()
-    const scrollHeight = await channelScroller.evaluate((element) => {
-        return element.scrollHeight
-    })
-    const offsetHeight = await channelScroller.evaluate((element) => {
-        return element.offsetHeight
-    })
-    var scrollPosition = 0
-    while (true) {
-        scrollPosition = Math.min((scrollPosition + offsetHeight), scrollHeight)
-        await channelScroller.evaluate((element, scrollPosition) => {
-            element.scrollTo({ top: scrollPosition, behavior: 'smooth' });
-        }, scrollPosition);
-        await page.waitForTimeout(1500);
         await loadChannels()
-        if (scrollPosition >= scrollHeight) {
-            break
+        const scrollHeight = await channelScroller.evaluate((element) => {
+            return element.scrollHeight
+        })
+        const offsetHeight = await channelScroller.evaluate((element) => {
+            return element.offsetHeight
+        })
+        var scrollPosition = 0
+        while (true) {
+            scrollPosition = Math.min((scrollPosition + offsetHeight), scrollHeight)
+            await channelScroller.evaluate((element, scrollPosition) => {
+                element.scrollTo({ top: scrollPosition, behavior: 'smooth' });
+            }, scrollPosition);
+            await page.waitForTimeout(1500);
+            await loadChannels()
+            if (scrollPosition >= scrollHeight) {
+                break
+            }
         }
-    }
+    })
     return channels
 }
 
 export const getDiscordMessagesForChannel = async (page: Page, serverId: string, channelId: string, lastId: string, syncTimeRange: number = SYNC_TIME_RANGE) => {
-    await checkDiscordAuthorized(page)
-    await page.goto(`https://discord.com/channels/${serverId}/${channelId}`, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('main', { timeout: 3 * 1000 });
-    const mains: ElementHandle[] = await page.$$('main')
-    var scroller: ElementHandle | null = null
-    var messagesWrapper: ElementHandle | null = null
-    for (const main of mains) {
-        if ((await main.getAttribute('class'))?.includes('chatContent')) {
-            const messagesWrapperDivs: ElementHandle[] = await main.$$('div')
-            for (const messagesWrapperDiv of messagesWrapperDivs) {
-                if (!scroller
-                    && (await messagesWrapperDiv.getAttribute('class'))?.includes('scroller')
-                    && (await messagesWrapperDiv.getAttribute('role')) == 'group'
-                    && (await messagesWrapperDiv.getAttribute('data-jump-section')) == 'global') {
-                    scroller = messagesWrapperDiv
-                }
-                if (!messagesWrapper
-                    && (await messagesWrapperDiv.getAttribute('class'))?.includes('messagesWrapper')) {
-                    messagesWrapper = messagesWrapperDiv
-                }
-                if (scroller && messagesWrapper) {
-                    break
-                }
-            }
-        }
-    }
-    if (!scroller || !messagesWrapper) {
-        throw new Error('Failed to find scroller or messagesWrapper')
-    }
-    await scroller.evaluate((element) => {
-        element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
-    });
-    await page.waitForTimeout(1500);
     var messages: any[] = []
-    var messageMap: any = {}
-    const getMessages = async (messagesWrapper: ElementHandle) => {
-        const chatMessageElements: ElementHandle[] = await messagesWrapper.$$('li')
-        for (const chatMessageElement of chatMessageElements) {
-            if ((await chatMessageElement.getAttribute('class'))?.includes('messageListItem')) {
-                const chatMessageId = await chatMessageElement.getAttribute('id')
-                if (chatMessageId?.includes(`chat-messages-${channelId}`)) {
-                    const messageId = chatMessageId.split('-')[3]
-                    if (!messageMap[messageId]) {
-                        var authorId = ''
-                        var authorName = ''
-                        var messageContent = ''
-                        var messageTime = ''
-                        const usernameSpan = (await chatMessageElement.$$(`#message-username-${messageId}`))
-                        if (usernameSpan.length > 0) {
-                            authorId = (await usernameSpan[0].getAttribute('id'))?.split('-')[2] || ''
-                            authorName = (await usernameSpan[0].textContent()) || ''
-                        }
-                        const messageTimeSpan = (await chatMessageElement.$$(`#message-timestamp-${messageId}`))
-                        if (messageTimeSpan.length > 0) {
-                            messageTime = (await messageTimeSpan[0].getAttribute('datetime')) || ''
-                        }
-                        const messageContentSpan = (await chatMessageElement.$$(`#message-content-${messageId}`))
-                        if (messageContentSpan.length > 0) {
-                            messageContent = (await messageContentSpan[0].textContent()) || ''
-                        }
-                        if (!authorId) {
-                            authorId = messages[messages.length - 1].author_id || ''
-                            authorName = messages[messages.length - 1].author_name || ''
-                        }
-                        if (!authorName) {
-                            authorName = messages.length > 0 ? messages[messages.length - 1].author : ''
-                        }
-                        messages.push({
-                            id: messageId,
-                            author_id: authorId,
-                            author: authorName,
-                            content: messageContent || '',
-                            timestamp: messageTime || '',
-                        })
-                        messageMap[messageId] = true
-                    } else {
-                        break
-                    }
-                }
-            }
+    await discordMtx.runExclusive(async () => {
+        await checkDiscordAuthorized(page)
+        await page.goto(`https://discord.com/channels/${serverId}/${channelId}`, { waitUntil: 'domcontentloaded' });
+        const scrollerSelector = 'div[role="group"][data-jump-section="global"]'
+        await page.waitForSelector(scrollerSelector, { timeout: 5 * 1000 });
+        const scroller = await page.$(scrollerSelector)
+        if (!scroller) {
+            throw new Error('Failed to find scroller')
         }
-    }
-    if (messagesWrapper) {
-        await getMessages(messagesWrapper)
-    }
-    // sort messages by timestamp
-    messages.sort((a, b) => {
-        return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    })
-    if (!messageMap[lastId]) {
-        // check first message if over 30 days old
-        var retryCount = 0
-        for (let i = 0; i < 200; i++) {
-            const lastMessageLength = messages.length
-            if (messages.length > 0) {
-                if (new Date(messages[0].timestamp).getTime() >= Date.now() - syncTimeRange) {
-                    await scroller.evaluate((element) => {
-                        element.scrollTo({ top: 0, behavior: 'smooth' });
-                    });
-                    await page.waitForTimeout(1500);
-                    await getMessages(messagesWrapper)
-                    messages.sort((a, b) => {
-                        return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-                    })
-                    if (messageMap[lastId]) {
-                        break
-                    }
-                    if (messages.length == lastMessageLength) {
-                        retryCount++
-                        if (retryCount >= 3) {
+        await scroller.evaluate((element) => {
+            element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
+        });
+        await page.waitForTimeout(1500);
+        var messageMap: any = {}
+        const getMessages = async (scroller: ElementHandle) => {
+            const chatMessageElements: ElementHandle[] = await scroller.$$('li')
+            for (const chatMessageElement of chatMessageElements) {
+                if ((await chatMessageElement.getAttribute('class'))?.includes('messageListItem')) {
+                    const chatMessageId = await chatMessageElement.getAttribute('id')
+                    if (chatMessageId?.includes(`chat-messages-${channelId}`)) {
+                        const messageId = chatMessageId.split('-')[3]
+                        if (!messageMap[messageId]) {
+                            var authorId = ''
+                            var authorName = ''
+                            var messageContent = ''
+                            var messageTime = ''
+                            var isBot = false
+                            const usernameSpan = await chatMessageElement.$(`#message-username-${messageId}`)
+                            if (usernameSpan) {
+                                authorId = (await usernameSpan.getAttribute('id'))?.split('-')[2] || ''
+                                authorName = (await usernameSpan.textContent()) || ''
+                            }
+                            const messageTimeSpan = await chatMessageElement.$(`#message-timestamp-${messageId}`)
+                            if (messageTimeSpan) {
+                                messageTime = (await messageTimeSpan.getAttribute('datetime')) || ''
+                            }
+                            const messageContentSpan = await chatMessageElement.$(`#message-content-${messageId}`)
+                            if (messageContentSpan) {
+                                messageContent = (await messageContentSpan.textContent()) || ''
+                            }
+                            if (!authorId) {
+                                const eTmp = await chatMessageElement.$('[aria-roledescription="Message"]')
+                                if (eTmp) {
+                                    if ((await eTmp.getAttribute('class'))?.includes('isSystemMessage')) {
+                                        isBot = true
+                                    }
+                                }
+                                if (!isBot) {
+                                    authorId = messages.length > 0 ? messages[messages.length - 1].author_id : ''
+                                }
+                            }
+                            if (authorId && !authorName) {
+                                authorName = messages.length > 0 ? messages[messages.length - 1].author : ''
+                            }
+                            authorName = isBot ? 'Bot' : authorName
+                            messages.push({
+                                id: messageId,
+                                author_id: authorId,
+                                author: authorName,
+                                content: messageContent || '',
+                                timestamp: messageTime || '',
+                                bot: isBot,
+                            })
+                            messageMap[messageId] = true
+                        } else {
                             break
                         }
-                        i--
+                    }
+                }
+            }
+        }
+        if (scroller) {
+            await getMessages(scroller)
+        }
+        // sort messages by timestamp
+        messages.sort((a, b) => {
+            return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        })
+        if (!messageMap[lastId]) {
+            // check first message if over 30 days old
+            var retryCount = 0
+            for (let i = 0; i < 200; i++) {
+                const lastMessageLength = messages.length
+                if (messages.length > 0) {
+                    if (new Date(messages[0].timestamp).getTime() >= Date.now() - syncTimeRange) {
+                        await scroller.evaluate((element) => {
+                            element.scrollTo({ top: 0, behavior: 'smooth' });
+                        });
+                        await page.waitForTimeout(1500);
+                        await getMessages(scroller)
+                        messages.sort((a, b) => {
+                            return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                        })
+                        if (messageMap[lastId]) {
+                            break
+                        }
+                        if (messages.length == lastMessageLength) {
+                            retryCount++
+                            if (retryCount >= 3) {
+                                break
+                            }
+                            i--
+                        } else {
+                            retryCount = 0
+                        }
                     } else {
-                        retryCount = 0
+                        break
                     }
                 } else {
                     break
                 }
-            } else {
-                break
             }
         }
-    }
+    })
     return messages
+}
+
+export const postMessageToChannel = async (page: Page, serverId: string, channelId: string, message: string) => {
+    await discordMtx.runExclusive(async () => {
+        await page.goto(`https://discord.com/channels/${serverId}/${channelId}`, { waitUntil: 'domcontentloaded' });
+        const chatInputSelector = 'div[role="textbox"][data-slate-node="value"]';
+        await page.waitForSelector(chatInputSelector, { state: 'visible', timeout: 5000 });
+        const chatInput: ElementHandle | null = await page.$(chatInputSelector);
+        if (!chatInput) {
+            throw new Error('Failed to find chat input')
+        }
+        await chatInput.click();
+        await page.keyboard.type(message);
+        await page.keyboard.press('Enter');
+    })
 }

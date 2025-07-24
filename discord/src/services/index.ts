@@ -9,12 +9,16 @@ import { MessageData, SYNC_TIME_RANGE } from "./types";
 import { chatMessageWithLLM } from "./llm";
 import { Mutex } from "async-mutex";
 import { getDiscordChannels, getDiscordMessagesForChannel } from "./playwright";
-import { chromium, Page } from "playwright";
+import { chromium, LaunchOptions, Page } from "playwright";
 
 const discordMtx = new Mutex()
+const summarizeMtx = new Mutex()
 
 export const newChromiumPage = async () => {
-    const browser = await chromium.launch({ headless: false });
+    const opts: LaunchOptions = {
+        headless: false,
+    }
+    const browser = await chromium.launchPersistentContext(`${process.env.STORAGE_PATH}/chromium`, opts);
     const page = await browser.newPage()
     await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
     while (true) {
@@ -109,6 +113,12 @@ export const newChromiumPage = async () => {
 //     }
 //     console.log(`Synced messages for server ${serverId}`);
 // }
+
+export const postMessageToChannel = async (page: Page, serverId: string, channelId: string, message: string) => {
+    await discordMtx.runExclusive(async () => {
+        await postMessageToChannel(page, serverId, channelId, message)
+    })
+}
 
 export const syncDiscordChannelsForServer = async (page: Page, serverId: string) => {
     await discordMtx.runExclusive(async () => {
@@ -209,7 +219,7 @@ export const syncDiscordMessagesForChannel = async (page: Page, serverId: string
                             author_id: message.author_id,
                             content: message.content,
                             timestamp: new Date(message.timestamp),
-                            bot: false,
+                            bot: message.bot,
                         }, {
                             where: {
                                 id: message.id,
@@ -225,7 +235,7 @@ export const syncDiscordMessagesForChannel = async (page: Page, serverId: string
                             author_id: message.author_id,
                             content: message.content,
                             timestamp: new Date(message.timestamp),
-                            bot: false,
+                            bot: message.bot,
                         })
                     }
                 } catch (error) {
@@ -239,13 +249,17 @@ export const syncDiscordMessagesForChannel = async (page: Page, serverId: string
     })
 }
 
-export const syncDiscordMessagesForServer = async (page: Page, serverId: string) => {
+export const syncDiscordMessagesForServer = async (page: Page, serverId: string, channelId?: string) => {
     try {
         console.log(`Syncing messages for server ${serverId}`)
+        const whereMap: any = {
+            server_id: serverId,
+        }
+        if (channelId) {
+            whereMap.id = channelId
+        }
         const channels = await DiscordChannels.findAll({
-            where: {
-                server_id: serverId,
-            },
+            where: whereMap,
         })
         for (const channel of channels) {
             try {
@@ -295,7 +309,7 @@ export const analyzeMessages = async (messages: MessageData[]) => {
 
 export const summarizeMessagesForChannel = async (serverId: string, channelId: string) => {
     console.log('summarizeMessagesForChannel', serverId, channelId)
-    await discordMtx.runExclusive(async () => {
+    await summarizeMtx.runExclusive(async () => {
         // delete old summaries
         await DiscordSummaries.destroy({
             where: {

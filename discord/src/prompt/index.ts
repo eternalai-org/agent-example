@@ -3,7 +3,7 @@ import { streamText } from 'ai';
 import { z } from "zod";
 import { DiscordChannels, DiscordMessages, DiscordSummaries } from '../services/database';
 import { Op } from 'sequelize';
-import { summarizeMessagesForAllChannels, syncDiscordChannelsForServer, syncDiscordMessagesForChannel, syncDiscordMessagesForServer } from '../services';
+import { postMessageToChannel, summarizeMessagesForAllChannels, syncDiscordChannelsForServer, syncDiscordMessagesForChannel, syncDiscordMessagesForServer } from '../services';
 import { Page } from 'playwright';
 import { getDiscordChannels, getDiscordMessagesForChannel } from '../services/playwright';
 import { SYNC_TIME_RANGE } from '../services/types';
@@ -130,6 +130,33 @@ export const sendPrompt = async (
                         }
                     },
                 },
+                postMessageToChannel: {
+                    description: 'Post a message to the channel. This is a message to the channel (content).',
+                    parameters: z.object({
+                        channel_id: z.string().describe('The channel id to post the message to. The channel id is the id of the channel in the server.'),
+                        message: z.string().describe('The message to post to the channel.'),
+                    }),
+                    execute: async (args: { channel_id: string, message: string }) => {
+                        console.log('postMessageToChannel', args)
+                        try {
+                            if (!serverId) {
+                                throw new Error('DISCORD_SERVER_ID is not set');
+                            }
+                            if (!page) {
+                                throw new Error('Page is not initialized');
+                            }
+                            if (callAgentFunc) {
+                                await callAgentFunc(`
+                                    <action>Executing <b>posting message to channel</b></action>
+                                `.trim())
+                            }
+                            await postMessageToChannel(page, serverId, args.channel_id, args.message)
+                            return `Message posted to channel ${args.channel_id}`
+                        } catch (error) {
+                            return `Error ${error instanceof Error ? error.message : 'Unknown error'}`
+                        }
+                    }
+                },
                 getDiscordSummaries: {
                     description: 'Get summaries of channel messages grouped by topic and time range. Each summary includes the number of messages and users discussing each topic.',
                     parameters: z.object({
@@ -149,13 +176,13 @@ export const sendPrompt = async (
                                     <action>Executing <b>syncing messages</b></action>
                                 `.trim())
                             }
-                            await syncDiscordMessagesForServer(page, serverId)
+                            await syncDiscordMessagesForServer(page, serverId, args.channel_id)
                             if (callAgentFunc) {
                                 await callAgentFunc(`
                                     <action>Executing <b>summarizing messages</b></action>
                                 `.trim())
                             }
-                            await summarizeMessagesForAllChannels(serverId)
+                            await summarizeMessagesForAllChannels(serverId, args.channel_id)
                             var fromTimestamp = new Date(Date.now() - SYNC_TIME_RANGE);
                             const whereMap: any = {
                                 server_id: serverId,
