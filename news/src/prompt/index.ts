@@ -22,7 +22,7 @@ Important:
 - Base selection on engagement score to get highlight news
 - Remove duplicate news, keep the one with the highest engagement score
 - Response must include the original full tweet content
-- Get top 10 highlight news and respond in the format as shown below, ordered by posted_at ascending:
+- If the user doesn’t specify the number of news items, return the top 10 highlight news and respond in the format as shown below, ordered by posted_at ascending:
 - Format:
 tweet content
 Source : https://x.com/username/status/tweet_id 
