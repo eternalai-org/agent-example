@@ -347,8 +347,8 @@ export const summarizeMessagesForChannel = async (serverId: string, channelId: s
                 limit: 200,
             })
             if (messages.length < 10 || (summaryUpdated && summaryUpdated.dataValues.num_messages >= messages.length)) break
-            const text = await analyzeMessages(await Promise.all(
-                messages.map(async (message) => ({
+            const text = await analyzeMessages(
+                messages.map((message) => ({
                     channel_id: message.dataValues.channel_id,
                     channel: message.dataValues.channel,
                     id: message.dataValues.id,
@@ -356,26 +356,9 @@ export const summarizeMessagesForChannel = async (serverId: string, channelId: s
                     author_id: message.dataValues.author_id,
                     content: message.dataValues.content,
                     timestamp: message.dataValues.timestamp,
-                    reply_to: message.dataValues.reply_to_id ? await (async () => {
-                        const replyTo = await DiscordMessages.findOne({
-                            where: {
-                                id: message.dataValues.reply_to_id,
-                            },
-                        })
-                        return replyTo ? {
-                            channel_id: replyTo.dataValues.channel_id,
-                            channel: replyTo.dataValues.channel,
-                            id: replyTo.dataValues.id,
-                            author: replyTo.dataValues.author,
-                            author_id: replyTo.dataValues.author_id,
-                            content: replyTo.dataValues.content,
-                            timestamp: replyTo.dataValues.timestamp,
-                            bot: replyTo.dataValues.bot,
-                            reply_to: null,
-                        } : null
-                    })() as MessageData | null : null,
+                    reply_to_id: message.dataValues.reply_to_id,
                 }))
-            ))
+            )
             if (text) {
                 if (summaryUpdated) {
                     await DiscordSummaries.update({

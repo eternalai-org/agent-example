@@ -7,6 +7,7 @@ import { getRecentMessages } from './services/discord';
 
 import { chromium } from 'playwright';
 import { getDiscordChannels, getAllServers, getDiscordMessagesForChannel, gotoLoginPageAndWait, postMessageToChannel } from './services/playwright';
+import { sendPrompt } from './prompt';
 
 (async () => {
     // Launch Playwright browser
@@ -26,7 +27,9 @@ import { getDiscordChannels, getAllServers, getDiscordMessagesForChannel, gotoLo
     //     }
     // }
 
-    // const page = await newChromiumPage()
+    const page = await newChromiumPage()
+
+    await getDiscordChannels(page, process.env.DISCORD_SERVER_ID || '')
 
     // // await postMessageToChannel(page, process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '', 'Hello, world!')
 
@@ -34,6 +37,22 @@ import { getDiscordChannels, getAllServers, getDiscordMessagesForChannel, gotoLo
     // console.log('messages', messages)
 
     // await summarizeMessagesForAllChannels(process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '')
+
+    await sendPrompt(
+        page,
+        {
+            env: process.env,
+            messages: [
+                {
+                    role: 'user',
+                    content: 'get messages from channel chat',
+                },
+            ],
+        },
+        async (delta) => {
+            return Promise.resolve()
+        }
+    )
 
 
 })()

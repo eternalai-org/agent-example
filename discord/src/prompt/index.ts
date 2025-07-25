@@ -108,6 +108,7 @@ export const sendPrompt = async (
                                 where: {
                                     server_id: serverId,
                                     channel_id: args.channel_id,
+                                    bot: false,
                                 },
                                 order: [['timestamp', 'DESC']],
                                 limit: 200,
@@ -116,9 +117,12 @@ export const sendPrompt = async (
                             return messages.map((message) => {
                                 return {
                                     id: message.dataValues.id,
+                                    author_id: message.dataValues.author_id,
                                     author: message.dataValues.author,
                                     content: message.dataValues.content,
                                     timestamp: message.dataValues.timestamp,
+                                    bot: message.dataValues.bot,
+                                    reply_to_id: message.dataValues.reply_to_id,
                                 }
                             });
                         } catch (error) {

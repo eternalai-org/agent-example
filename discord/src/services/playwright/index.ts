@@ -74,7 +74,7 @@ export const getDiscordChannels = async (page: Page, serverId: string) => {
     await discordMtx.runExclusive(async () => {
         await checkDiscordAuthorized(page)
         await page.goto(`https://discord.com/channels/${serverId}`);
-        await page.waitForSelector('#channels', { timeout: 30 * 1000 });
+        await page.waitForSelector('#channels', { timeout: 60 * 1000 });
         const channelScroller: ElementHandle | null = await page.$('#channels')
         if (!channelScroller) {
             throw new Error('Failed to find channel scroller')
@@ -133,7 +133,7 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
         await checkDiscordAuthorized(page)
         await page.goto(`https://discord.com/channels/${serverId}/${channelId}`, { waitUntil: 'domcontentloaded' });
         const scrollerSelector = 'div[role="group"][data-jump-section="global"]'
-        await page.waitForSelector(scrollerSelector, { timeout: 5 * 1000 });
+        await page.waitForSelector(scrollerSelector, { timeout: 60 * 1000 });
         const scroller = await page.$(scrollerSelector)
         if (!scroller) {
             throw new Error('Failed to find scroller')
@@ -187,7 +187,14 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
                             const replyToElement = await chatMessageElement.$(`#message-reply-context-${messageId}`)
                             var replyToId = ''
                             if (replyToElement) {
-                                replyToId = (await replyToElement.getAttribute('id'))?.split('-')[3] || ''
+                                const replyToIdElements = await replyToElement.$$('div')
+                                for (const replyToIdElement of replyToIdElements) {
+                                    const replyToIdElementId = await replyToIdElement.getAttribute('id')
+                                    if (replyToIdElementId?.includes('message-content-')) {
+                                        replyToId = replyToIdElementId.split('-')[2]
+                                        break
+                                    }
+                                }
                             }
                             messages.push({
                                 id: messageId,
@@ -216,7 +223,7 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
         if (!messageMap[lastId]) {
             // check first message if over 30 days old
             var retryCount = 0
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < 200; i++) {
                 const lastMessageLength = messages.length
                 if (messages.length > 0) {
                     if (new Date(messages[0].timestamp).getTime() >= Date.now() - syncTimeRange) {
@@ -240,6 +247,9 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
                         } else {
                             retryCount = 0
                         }
+                        if (messages.length >= 5000) {
+                            break
+                        }
                     } else {
                         break
                     }
@@ -256,7 +266,7 @@ export const postMessageToChannel = async (page: Page, serverId: string, channel
     await discordMtx.runExclusive(async () => {
         await page.goto(`https://discord.com/channels/${serverId}/${channelId}`, { waitUntil: 'domcontentloaded' });
         const chatInputSelector = 'div[role="textbox"][data-slate-node="value"]';
-        await page.waitForSelector(chatInputSelector, { state: 'visible', timeout: 5000 });
+        await page.waitForSelector(chatInputSelector, { state: 'visible', timeout: 60 * 1000 });
         const chatInput: ElementHandle | null = await page.$(chatInputSelector);
         if (!chatInput) {
             throw new Error('Failed to find chat input')
