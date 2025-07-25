@@ -293,44 +293,39 @@ export const syncDiscordMessagesForServer = async (page: Page, serverId: string,
 export const analyzeMessages = async (messages: MessageData[]) => {
     if (messages.length === 0) return '';
     console.log('analyzeMessages', messages[0].timestamp, messages[messages.length - 1].timestamp)
-    return await chatMessageWithLLM(
-        `
-        You are a Discord Message Analyzer. Your task is to analyze conversations and extract key discussion topics.
+    var text = await chatMessageWithLLM(
+        `You are a Discord Message Analyzer. Analyze the provided messages and extract key discussion topics.
 
-        For each topic, identify:
-        1. The main subject matter being discussed
-        2. Who initiated the discussion
-        3. The most engaged participants
-        4. Key points and conclusions reached
+Output a JSON array of topics with this schema:
+{
+  "topic": "string - specific subject being discussed",
+  "creator": "string - username who started the topic",
+  "top3_active_users": "array of string - list of most engaged users", 
+  "number_of_messages": "number - count of messages in this topic",
+  "number_of_users": "number - count of unique users in this topic",
+  "summary": "string - key points and conclusions"
+}
 
-        Analysis requirements:
-        - Focus on meaningful discussions, not small talk
-        - Use precise topic names that capture the specific subject
-        - Group messages into coherent conversation threads
-        - Only include messages that meaningfully contribute
-        - Note when topics build on or reference each other
-        - Track participant engagement and roles
+Guidelines:
+- Focus on substantive discussions, not chit-chat
+- Group related messages into coherent topics
+- Note connections between topics
+- Track who participates most actively
+- Only include messages that contribute meaningfully
 
-        Required JSON output format:
-        [
-          {
-            "topic": "Specific topic name",
-            "creator": "The user who created the topic", 
-            "top3_active_users": "The top 3 users who are actively discussing the topic",
-            "number_of_messages": Number of messages about this topic,
-            "number_of_users": Number of unique users discussing this topic,
-            "summary": "A summary of the conversation"
-          }
-        ]
+Output must be valid JSON with no other text.`,
 
-        Output must be valid JSON only, with no additional text.
-        `,
-        `
-        Analyze these messages by topic according to the guidelines above:
+        `Here are the Discord messages to analyze:
 
-        ${messages.map((message) => `- #${message.id} ${message.reply_to_id ? `(reply to #${message.reply_to_id}) ` : ''}: ${message.author} <@${message.author_id}> : ${message.content}`).join('\n')}
-        `
+${messages.map((message) => `- #${message.id} ${message.reply_to_id ? `(reply to #${message.reply_to_id}) ` : ''}: ${message.author} <@${message.author_id}> : ${message.content}`).join('\n')}`
     )
+    if (text.startsWith('```json')) {
+        text = text.substring(7, text.length - 3)
+    }
+    if (text.endsWith('```')) {
+        text = text.substring(0, text.length - 3)
+    }
+    return text
 }
 
 export const summarizeMessagesForChannel = async (serverId: string, channelId: string) => {
