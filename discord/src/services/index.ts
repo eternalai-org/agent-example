@@ -346,7 +346,7 @@ export const summarizeMessagesForChannel = async (serverId: string, channelId: s
                 order: [['id', 'ASC']],
                 limit: 200,
             })
-            if (messages.length < 20 || (summaryUpdated && summaryUpdated.dataValues.num_messages >= messages.length)) break
+            if (messages.length < 10 || (summaryUpdated && summaryUpdated.dataValues.num_messages >= messages.length)) break
             const text = await analyzeMessages(await Promise.all(
                 messages.map(async (message) => ({
                     channel_id: message.dataValues.channel_id,
