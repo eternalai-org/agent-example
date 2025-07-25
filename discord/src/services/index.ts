@@ -132,7 +132,7 @@ export const syncDiscordChannelsForServer = async (page: Page, serverId: string)
                     server_id: serverId,
                 },
             })
-            if (!initedChannel || initedChannel.dataValues.created_at < new Date(Date.now() - 3 * 60 * 1000)) {
+            if (!initedChannel || initedChannel.dataValues.created_at < new Date(Date.now() - 60 * 60 * 1000)) {
                 const channels = await getDiscordChannels(page, serverId)
                 await DiscordChannels.destroy({
                     where: {
@@ -140,27 +140,14 @@ export const syncDiscordChannelsForServer = async (page: Page, serverId: string)
                     },
                 })
                 for (const channel of channels) {
-                    const existedChannel = await DiscordChannels.findOne({
-                        where: {
-                            id: channel.id,
-                        },
-                    })
-                    if (existedChannel) {
-                        // update channel
-                        await DiscordChannels.update({
-                            name: channel.name,
-                        }, {
-                            where: {
-                                id: channel.id,
-                            },
-                        })
-                    } else {
-                        // create channel
+                    // create channel
+                    try {
                         await DiscordChannels.create({
                             id: channel.id,
                             server_id: serverId,
                             name: channel.name,
                         })
+                    } catch (error) {
                     }
                 }
             }
