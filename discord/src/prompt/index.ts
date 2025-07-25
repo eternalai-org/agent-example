@@ -46,7 +46,7 @@ export const sendPrompt = async (
 
             4. getRecentMessages
             - Fetches recent messages from a channel
-            - Returns: message ID, content, author, timestamp
+            - Returns: message ID, content, author, timestamp, reply to message id
             - Use for detailed message-level analysis
 
             5. postMessageToChannel
