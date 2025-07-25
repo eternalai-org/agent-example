@@ -29,7 +29,8 @@ import { sendPrompt } from './prompt';
 
     const page = await newChromiumPage()
 
-    await getDiscordChannels(page, process.env.DISCORD_SERVER_ID || '')
+    const servers = await getAllServers(page)
+    console.log('servers', servers)
 
     // // await postMessageToChannel(page, process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '', 'Hello, world!')
 
@@ -37,22 +38,6 @@ import { sendPrompt } from './prompt';
     // console.log('messages', messages)
 
     // await summarizeMessagesForAllChannels(process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '')
-
-    await sendPrompt(
-        page,
-        {
-            env: process.env,
-            messages: [
-                {
-                    role: 'user',
-                    content: 'get messages from channel chat',
-                },
-            ],
-        },
-        async (delta) => {
-            return Promise.resolve()
-        }
-    )
 
 
 })()

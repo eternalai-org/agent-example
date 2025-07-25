@@ -8,6 +8,26 @@ export const sequelize = new Sequelize({
     logging: false,
 });
 
+export const DiscordServers = sequelize.define(
+    'discord_servers',
+    {
+        id: {
+            type: DataTypes.STRING,
+            primaryKey: true,
+        },
+        name: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        }
+    },
+    {
+        timestamps: true,
+        createdAt: 'created_at',
+        updatedAt: 'updated_at'
+    },
+);
+
+
 export const DiscordChannels = sequelize.define(
     'discord_channels',
     {

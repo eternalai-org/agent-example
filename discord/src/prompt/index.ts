@@ -1,12 +1,13 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText } from 'ai';
 import { z } from "zod";
-import { DiscordChannels, DiscordMessages, DiscordSummaries } from '../services/database';
+import { DiscordChannels, DiscordMessages, DiscordServers, DiscordSummaries } from '../services/database';
 import { Op } from 'sequelize';
-import { postDiscordMessage, summarizeMessagesForAllChannels, syncDiscordChannelsForServer, syncDiscordMessagesForChannel, syncDiscordMessagesForServer } from '../services';
+import { needSyncDiscordChannels, needSyncDiscordServers, postDiscordMessage, summarizeMessagesForAllChannels, syncDiscordChannelsForServer, syncDiscordMessagesForChannel, syncDiscordMessagesForServer, syncDiscordServers } from '../services';
 import { Page } from 'playwright';
 import { getDiscordChannels, getDiscordMessagesForChannel } from '../services/playwright';
 import { SYNC_TIME_RANGE } from '../services/types';
+import { channel } from 'diagnostics_channel';
 
 const clientOpenAI = createOpenAI({
     name: process.env.LLM_MODEL_ID || 'gpt-4o-mini',
@@ -20,7 +21,6 @@ export const sendPrompt = async (
     callAgentFunc: (delta: string) => Promise<void>
 ): Promise<any> => {
     try {
-        const serverId = (request.env && request.env.DISCORD_SERVER_ID) ? request.env.DISCORD_SERVER_ID : (process.env.DISCORD_SERVER_ID || '');
         const { textStream } = streamText({
             model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
             maxSteps: 25,
@@ -40,6 +40,10 @@ export const sendPrompt = async (
                 - Channel ID
                 - List of messages (id, content, author, timestamp)
 
+            4. postMessageToChannel: Posts a message to a channel, including:
+                - Channel ID
+                - Message content
+
             Important notes:
             - Always check channel names/IDs before analyzing specific channels
             - Due to data volume, you work with pre-generated summaries rather than raw messages
@@ -50,27 +54,63 @@ export const sendPrompt = async (
             - Trends in discussions across channels
             `.trim(),
             tools: {
-                getAllChannels: {
-                    description: 'Get all channels of the server. This is a list of all channels in the server (id, name, type). You can use this to get the channel id to get the summaries of the channels or recent messages.',
+                getDiscordServers: {
+                    description: 'Get all servers. This is a list of all servers (id, name). You can use this to get the server id to get the channels of the server or get the summaries of the channels.',
                     parameters: z.object({}),
+                    execute: async (args) => {
+                        console.log('getDiscordServers', args)
+                        try {
+                            if (!page) {
+                                throw new Error('Page is not initialized');
+                            }
+                            if (await needSyncDiscordServers()) {
+                                if (callAgentFunc) {
+                                    await callAgentFunc(`
+                                        <action>Executing <b>syncing servers</b></action>
+                                    `.trim())
+                                }
+                                await syncDiscordServers(page)
+                            }
+                            const servers = await DiscordServers.findAll({
+                                where: {
+                                },
+                            });
+                            return servers.map((server) => {
+                                return {
+                                    id: server.dataValues.id,
+                                    name: server.dataValues.name,
+                                }
+                            });
+                        } catch (error) {
+                            return `Error ${error instanceof Error ? error.message : 'Unknown error'}`
+                        }
+                    }
+                },
+                getAllChannels: {
+                    description: 'Get all channels of the server. This is a list of all channels in the server (id, name). You can use this to get the channel id to get the summaries of the channels, recent messages or post messages to the channels.',
+                    parameters: z.object({
+                        server_id: z.string().optional().describe('The server id to get the channels for. The server id is the id of the server in the Discord.'),
+                    }),
                     execute: async (args) => {
                         console.log('getAllChannels', args)
                         try {
-                            if (!serverId) {
-                                throw new Error('DISCORD_SERVER_ID is not set');
+                            if (!args.server_id) {
+                                throw new Error('server_id is required');
                             }
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
-                            if (callAgentFunc) {
-                                await callAgentFunc(`
-                                    <action>Executing <b>syncing channels</b></action>
-                                `.trim())
+                            if (await needSyncDiscordChannels(args.server_id)) {
+                                if (callAgentFunc) {
+                                    await callAgentFunc(`
+                                        <action>Executing <b>syncing channels</b></action>
+                                    `.trim())
+                                }
+                                await syncDiscordChannelsForServer(page, args.server_id)
                             }
-                            await syncDiscordChannelsForServer(page, serverId)
                             const channels = await DiscordChannels.findAll({
                                 where: {
-                                    server_id: serverId,
+                                    server_id: args.server_id,
                                 },
                             });
                             return channels.map((channel) => {
@@ -92,21 +132,26 @@ export const sendPrompt = async (
                     execute: async (args: { channel_id: string }) => {
                         console.log('getRecentMessages', args)
                         try {
-                            if (!serverId) {
-                                throw new Error('DISCORD_SERVER_ID is not set');
-                            }
                             if (!page) {
                                 throw new Error('Page is not initialized');
+                            }
+                            const channel = await DiscordChannels.findOne({
+                                where: {
+                                    id: args.channel_id,
+                                },
+                            });
+                            if (!channel) {
+                                throw new Error('Channel not found');
                             }
                             if (callAgentFunc) {
                                 await callAgentFunc(`
                                     <action>Executing <b>syncing messages</b></action>
                                 `.trim())
                             }
-                            await syncDiscordMessagesForChannel(page, serverId, args.channel_id)
+                            await syncDiscordMessagesForChannel(page, channel.dataValues.server_id, args.channel_id)
                             const messages = await DiscordMessages.findAll({
                                 where: {
-                                    server_id: serverId,
+                                    server_id: channel.dataValues.server_id,
                                     channel_id: args.channel_id,
                                     bot: false,
                                 },
@@ -121,7 +166,6 @@ export const sendPrompt = async (
                                     author: message.dataValues.author,
                                     content: message.dataValues.content,
                                     timestamp: message.dataValues.timestamp,
-                                    bot: message.dataValues.bot,
                                     reply_to_id: message.dataValues.reply_to_id,
                                 }
                             });
@@ -140,9 +184,6 @@ export const sendPrompt = async (
                     execute: async (args: { channel_id: string, message: string }) => {
                         console.log('postMessageToChannel', args)
                         try {
-                            if (!serverId) {
-                                throw new Error('DISCORD_SERVER_ID is not set');
-                            }
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
@@ -151,7 +192,15 @@ export const sendPrompt = async (
                                     <action>Executing <b>posting message to channel</b></action>
                                 `.trim())
                             }
-                            await postDiscordMessage(page, serverId, args.channel_id, args.message)
+                            const channel = await DiscordChannels.findOne({
+                                where: {
+                                    id: args.channel_id,
+                                },
+                            });
+                            if (!channel) {
+                                throw new Error('Channel not found');
+                            }
+                            await postDiscordMessage(page, channel.dataValues.server_id, args.channel_id, args.message)
                             return `Message posted to channel ${args.channel_id}`
                         } catch (error) {
                             return `Error ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -161,32 +210,33 @@ export const sendPrompt = async (
                 getDiscordSummaries: {
                     description: 'Get summaries of channel messages grouped by topic and time range. Each summary includes the number of messages and users discussing each topic.',
                     parameters: z.object({
+                        server_id: z.string().describe('The server id to get the summaries for. The server id is the id of the server in the Discord.'),
                         channel_id: z.string().optional().describe('The channel id to get the summaries for. The channel id is the id of the channel in the server. If not provided, all channels will be returned.'),
                     }),
-                    execute: async (args: { channel_id: string }) => {
+                    execute: async (args: { server_id: string, channel_id?: string }) => {
                         console.log('getDiscordSummaries', args)
                         try {
-                            if (!serverId) {
-                                throw new Error('DISCORD_SERVER_ID is not set');
-                            }
                             if (!page) {
                                 throw new Error('Page is not initialized');
+                            }
+                            if (!args.server_id) {
+                                throw new Error('server_id is required');
                             }
                             if (callAgentFunc) {
                                 await callAgentFunc(`
                                     <action>Executing <b>syncing messages</b></action>
                                 `.trim())
                             }
-                            await syncDiscordMessagesForServer(page, serverId, args.channel_id)
+                            await syncDiscordMessagesForServer(page, args.server_id, args.channel_id)
                             if (callAgentFunc) {
                                 await callAgentFunc(`
                                     <action>Executing <b>summarizing messages</b></action>
                                 `.trim())
                             }
-                            await summarizeMessagesForAllChannels(serverId, args.channel_id)
+                            await summarizeMessagesForAllChannels(args.server_id, args.channel_id)
                             var fromTimestamp = new Date(Date.now() - SYNC_TIME_RANGE);
                             const whereMap: any = {
-                                server_id: serverId,
+                                server_id: args.server_id,
                                 to_timestamp: {
                                     [Op.gte]: fromTimestamp,
                                 },
@@ -198,10 +248,15 @@ export const sendPrompt = async (
                                 where: whereMap,
                                 order: [['to_timestamp', 'ASC']],
                             });
+                            const channelWhereMap: any = {
+                                server_id: args.server_id,
+                            }
+                            if (args.channel_id) {
+                                channelWhereMap.id = args.channel_id;
+                            }
                             const channels = await DiscordChannels.findAll({
-                                where: {
-                                    server_id: serverId,
-                                },
+                                where: channelWhereMap,
+                                order: [['name', 'ASC']],
                             });
                             return {
                                 channels: channels.map((channel: any) => {
@@ -226,12 +281,6 @@ export const sendPrompt = async (
                 },
             },
             messages: request.messages,
-            onError: (error) => {
-                console.log('sendPromptWithMultipleAgents onError', error);
-            },
-            // onStepFinish: (step) => {
-            //     console.log('sendPrompt onStepFinish', step)
-            // }
         });
         return textStream;
     } catch (error) {

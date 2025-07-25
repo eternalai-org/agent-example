@@ -1,5 +1,5 @@
 import { Message } from "discord.js";
-import { DiscordChannels, DiscordMessages, DiscordSummaries } from "./database";
+import { DiscordChannels, DiscordMessages, DiscordServers, DiscordSummaries } from "./database";
 import { getServerChanels } from "./discord";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
@@ -8,7 +8,7 @@ import { convertDateToSnowflakeID, removeThinking } from "./helpers";
 import { MessageData, SYNC_TIME_RANGE } from "./types";
 import { chatMessageWithLLM } from "./llm";
 import { Mutex } from "async-mutex";
-import { getDiscordChannels, getDiscordMessagesForChannel, postMessageToChannel } from "./playwright";
+import { getAllServers, getDiscordChannels, getDiscordMessagesForChannel, postMessageToChannel } from "./playwright";
 import { chromium, LaunchOptions, Page } from "playwright";
 
 const discordMtx = new Mutex()
@@ -24,9 +24,6 @@ export const newChromiumPage = async () => {
     while (true) {
         try {
             await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 10 * 1000 });
-            if (process.env.DISCORD_SERVER_ID) {
-                await page.goto(`https://discord.com/channels/${process.env.DISCORD_SERVER_ID}`, { waitUntil: 'networkidle' });
-            }
             break
         } catch (error) {
             try {
@@ -123,34 +120,62 @@ export const postDiscordMessage = async (page: Page, serverId: string, channelId
     })
 }
 
+export const needSyncDiscordServers = async () => {
+    const initedServer = await DiscordServers.findOne({
+        where: {
+        },
+    })
+    return !initedServer || initedServer.dataValues.created_at < new Date(Date.now() - 60 * 60 * 1000)
+}
+
+export const syncDiscordServers = async (page: Page) => {
+    await discordMtx.runExclusive(async () => {
+        try {
+            console.log(`Syncing servers`)
+            const servers = await getAllServers(page)
+            await DiscordServers.destroy({
+                where: {
+                },
+            })
+            await DiscordServers.bulkCreate(
+                servers.map((server) => ({
+                    id: server.id,
+                    name: server.name,
+                }))
+            )
+            console.log(`Synced servers`)
+        } catch (error) {
+            console.log(`Cannot sync servers: ${error}`);
+        }
+    })
+}
+
+export const needSyncDiscordChannels = async (serverId: string) => {
+    const initedChannel = await DiscordChannels.findOne({
+        where: {
+            server_id: serverId,
+        },
+    })
+    return !initedChannel || initedChannel.dataValues.created_at < new Date(Date.now() - 60 * 60 * 1000)
+}
+
 export const syncDiscordChannelsForServer = async (page: Page, serverId: string) => {
     await discordMtx.runExclusive(async () => {
         try {
             console.log(`Syncing channels for server ${serverId}`)
-            const initedChannel = await DiscordChannels.findOne({
+            const channels = await getDiscordChannels(page, serverId)
+            await DiscordChannels.destroy({
                 where: {
                     server_id: serverId,
                 },
             })
-            if (!initedChannel || initedChannel.dataValues.created_at < new Date(Date.now() - 60 * 60 * 1000)) {
-                const channels = await getDiscordChannels(page, serverId)
-                await DiscordChannels.destroy({
-                    where: {
-                        server_id: serverId,
-                    },
-                })
-                for (const channel of channels) {
-                    // create channel
-                    try {
-                        await DiscordChannels.create({
-                            id: channel.id,
-                            server_id: serverId,
-                            name: channel.name,
-                        })
-                    } catch (error) {
-                    }
-                }
-            }
+            await DiscordChannels.bulkCreate(
+                channels.map((channel) => ({
+                    id: channel.id,
+                    server_id: serverId,
+                    name: channel.name,
+                }))
+            )
             console.log(`Synced channels for server ${serverId}`)
         } catch (error) {
             console.log(`Cannot sync channels for server ${serverId}: ${error}`);
@@ -454,7 +479,6 @@ export const jobSyncDiscordMessagesAndSummarize = async () => {
         try {
             await deleteOldSummaries()
             await deleteOldMessages()
-            // await syncDiscordMessagesForServer()
             await summarizeMessagesForAllChannels()
             console.log('Synced discord messages and summarized')
         } catch (error) {

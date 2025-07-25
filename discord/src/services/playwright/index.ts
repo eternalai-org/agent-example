@@ -27,41 +27,24 @@ export const checkDiscordAuthorized = async (page: Page) => {
 
 export const getAllServers = async (page: Page) => {
     await page.goto('https://discord.com/channels/@me', { waitUntil: 'networkidle' });
-    const divAlls: ElementHandle[] = await page.$$('div')
     const servers: any[] = []
-    for (const div of divAlls) {
-        if ((await div.getAttribute('class'))?.includes('stack')
-            && (await div.getAttribute('role')) === 'group') {
-            const divBlobContainers = await div.$$('div')
-            for (const divBlobContainer of divBlobContainers) {
-                if ((await divBlobContainer.getAttribute('class'))?.includes('blobContainer')) {
-                    const foreignObjects: ElementHandle[] = await divBlobContainer.$$('foreignObject')
-                    for (const foreignObject of foreignObjects) {
-                        const divWrappers: ElementHandle[] = await foreignObject.$$('div')
-                        for (const divWrapper of divWrappers) {
-                            if ((await divWrapper.getAttribute('class'))?.includes('wrapper__')
-                                && (await divWrapper.getAttribute('role')) === 'treeitem') {
-                                const dataListItemId = await divWrapper.getAttribute('data-list-item-id')
-                                if (dataListItemId != '') {
-                                    const serverId = (await divWrapper.getAttribute('data-list-item-id'))?.split('___')[1]
-                                    const serverName = await divBlobContainer.getAttribute('data-dnd-name')
-                                    const images = await divWrapper.$$('img')
-                                    var imageSrc = ''
-                                    for (const image of images) {
-                                        imageSrc = await image.getAttribute('src') || ''
-                                        if (imageSrc != '') {
-                                            break
-                                        }
-                                    }
-                                    servers.push({
-                                        id: serverId,
-                                        name: serverName,
-                                        image_src: imageSrc
-                                    })
-                                }
-                            }
-                        }
-                    }
+    await page.waitForSelector('div[role="group"][aria-label="Servers"]', { timeout: 60 * 1000 });
+    const serverGroupElement = await page.$('div[role="group"][aria-label="Servers"]')
+    if (!serverGroupElement) {
+        throw new Error('Failed to find server group')
+    }
+    const serverElements: ElementHandle[] = await serverGroupElement.$$('div')
+    for (const serverElement of serverElements) {
+        const classValue = await serverElement.getAttribute('class')
+        if (classValue?.includes('blobContainer')) {
+            const serverName = await serverElement.getAttribute('data-dnd-name')
+            if (serverName) {
+                const serverId = (await (await serverElement.$('[role="treeitem"]'))?.getAttribute('data-list-item-id'))?.split('___')[1]
+                if (serverId) {
+                    servers.push({
+                        id: serverId,
+                        name: serverName,
+                    })
                 }
             }
         }
@@ -174,6 +157,16 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
                                 if (eTmp) {
                                     if ((await eTmp.getAttribute('class'))?.includes('isSystemMessage')) {
                                         isBot = true
+                                    }
+                                }
+                                if (usernameSpan) {
+                                    (await usernameSpan.$$('span'))
+                                    const botSpans: ElementHandle[] = await usernameSpan.$$('span')
+                                    for (const botSpan of botSpans) {
+                                        if ((await botSpan.getAttribute('class'))?.includes('botTagCozy')) {
+                                            isBot = true
+                                            break
+                                        }
                                     }
                                 }
                                 if (!isBot) {
