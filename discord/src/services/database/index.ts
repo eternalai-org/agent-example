@@ -75,6 +75,10 @@ export const DiscordMessages = sequelize.define(
             type: DataTypes.DATE,
             allowNull: false,
         },
+        reply_to_id: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
     },
     {
         timestamps: true,

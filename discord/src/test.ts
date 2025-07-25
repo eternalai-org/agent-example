@@ -26,12 +26,14 @@ import { getDiscordChannels, getAllServers, getDiscordMessagesForChannel, gotoLo
     //     }
     // }
 
-    const page = await newChromiumPage()
+    // const page = await newChromiumPage()
 
-    // await postMessageToChannel(page, process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '', 'Hello, world!')
+    // // await postMessageToChannel(page, process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '', 'Hello, world!')
 
-    const messages = await getDiscordMessagesForChannel(page, process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '', 'none')
-    console.log('messages', messages)
+    // const messages = await getDiscordMessagesForChannel(page, process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '', 'none')
+    // console.log('messages', messages)
+
+    // await summarizeMessagesForAllChannels(process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '')
 
 
 })()

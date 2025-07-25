@@ -8,4 +8,5 @@ export interface MessageData {
     author_id: string;
     content: string;
     timestamp: Date;
+    reply_to: MessageData | null;
 }

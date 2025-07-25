@@ -184,6 +184,11 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
                                 authorName = messages.length > 0 ? messages[messages.length - 1].author : ''
                             }
                             authorName = isBot ? 'Bot' : authorName
+                            const replyToElement = await chatMessageElement.$(`#message-reply-context-${messageId}`)
+                            var replyToId = ''
+                            if (replyToElement) {
+                                replyToId = (await replyToElement.getAttribute('id'))?.split('-')[3] || ''
+                            }
                             messages.push({
                                 id: messageId,
                                 author_id: authorId,
@@ -191,6 +196,7 @@ export const getDiscordMessagesForChannel = async (page: Page, serverId: string,
                                 content: messageContent || '',
                                 timestamp: messageTime || '',
                                 bot: isBot,
+                                reply_to_id: replyToId,
                             })
                             messageMap[messageId] = true
                         } else {
