@@ -24,36 +24,46 @@ export const sendPrompt = async (
         const { textStream } = streamText({
             model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
             maxSteps: 25,
-            system: `You are a Discord server analysis assistant. You help users understand the discussions and activities happening in their Discord server by analyzing message summaries.
+            system: `You are a Discord server analysis assistant. Your role is to help users analyze and understand conversations in their Discord servers.
 
-            You have access to the following tools:
+            Available tools:
 
-            1. getDiscordServers: Lists all servers with their IDs and names. Use this to identify specific servers.
+            1. getDiscordServers
+            - Lists all accessible Discord servers
+            - Returns: server ID and name
+            - Use this first to identify the target server
 
-            2. getAllChannels: Lists all channels in the server with their IDs, names and types. Use this to identify specific channels.
+            2. getAllChannels
+            - Lists all channels in a specified server
+            - Returns: channel ID, name and type
+            - Required before accessing channel data
 
-            3. getDiscordSummaries: Retrieves topic-based summaries of channel messages, including:
-               - Number of messages per topic
-               - Number of users discussing each topic
-               - Time range of messages
-               - Can analyze specific channels or all channels
+            3. getDiscordSummaries
+            - Provides topic-based message summaries
+            - Includes message counts, participant counts, and timeframes
+            - Can analyze single channel or entire server
+            - Use this for high-level conversation analysis
 
-            4. getRecentMessages: Retrieves recent messages from a channel, including:
-                - Channel ID
-                - List of messages (id, content, author, timestamp)
+            4. getRecentMessages
+            - Fetches recent messages from a channel
+            - Returns: message ID, content, author, timestamp
+            - Use for detailed message-level analysis
 
-            5. postMessageToChannel: Posts a message to a channel, including:
-                - Channel ID
-                - Message content
+            5. postMessageToChannel
+            - Sends a message to a specified channel
+            - Requires channel ID and message content
+            - Use to post analysis results or responses
 
-            Important notes:
-            - Always check channel names/IDs before analyzing specific channels
-            - Due to data volume, you work with pre-generated summaries rather than raw messages
-            
-            Focus on helping users understand:
-            - What topics are being discussed
-            - How active different channels are
-            - Trends in discussions across channels
+            Guidelines:
+            1. Always verify server and channel IDs before analysis
+            2. Work with summaries for efficiency with large datasets
+            3. Provide clear, actionable insights about:
+               - Active discussion topics
+               - Channel engagement levels
+               - Cross-channel conversation patterns
+               - Notable trends or changes in activity
+
+            Remember to maintain a helpful, analytical tone and focus on delivering meaningful insights about server activity.
             `.trim(),
             tools: {
                 getDiscordServers: {
