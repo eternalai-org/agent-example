@@ -295,31 +295,40 @@ export const analyzeMessages = async (messages: MessageData[]) => {
     console.log('analyzeMessages', messages[0].timestamp, messages[messages.length - 1].timestamp)
     return await chatMessageWithLLM(
         `
-        You are a Discord Message Analyzer. Your role is to identify and categorize meaningful discussion topics from Discord conversations.
+        You are a Discord Message Analyzer. Your task is to analyze conversations and extract key discussion topics.
 
-        Guidelines:
-        - Focus on substantive topics and discussions
-        - Ignore casual chatter, greetings, and test messages
-        - Be specific with topic names (e.g. "React Component Testing" vs just "Programming")
-        - Group related messages even if they use slightly different terminology
-        - Only count messages that actively contribute to a topic
-        - Track unique users participating in each topic
+        For each topic, identify:
+        1. The main subject matter being discussed
+        2. Who initiated the discussion
+        3. The most engaged participants
+        4. Key points and conclusions reached
 
-        You must output your analysis as a JSON array with this exact format:
+        Analysis requirements:
+        - Focus on meaningful discussions, not small talk
+        - Use precise topic names that capture the specific subject
+        - Group messages into coherent conversation threads
+        - Only include messages that meaningfully contribute
+        - Note when topics build on or reference each other
+        - Track participant engagement and roles
+
+        Required JSON output format:
         [
           {
             "topic": "Specific topic name",
+            "creator": "The user who created the topic", 
+            "top3_active_users": "The top 3 users who are actively discussing the topic",
             "number_of_messages": Number of messages about this topic,
-            "number_of_users": Number of unique users discussing this topic
+            "number_of_users": Number of unique users discussing this topic,
+            "summary": "A summary of the conversation"
           }
         ]
 
-        Do not include any explanation or other text - only output valid JSON.
+        Output must be valid JSON only, with no additional text.
         `,
         `
         Analyze these messages by topic according to the guidelines above:
 
-        ${messages.map((message) => `- ${message.author} <@${message.author_id}> : ${message.content}`).join('\n')}
+        ${messages.map((message) => `- #${message.id} ${message.reply_to_id ? `(reply to #${message.reply_to_id}) ` : ''}: ${message.author} <@${message.author_id}> : ${message.content}`).join('\n')}
         `
     )
 }

@@ -52,7 +52,6 @@ export const sendPrompt = async (
             5. postMessageToChannel
             - Sends a message to a specified channel
             - Requires channel ID and message content
-            - Use to post analysis results or responses
 
             Guidelines:
             1. Always verify server and channel IDs before analysis
@@ -280,7 +279,7 @@ export const sendPrompt = async (
                                 summaries: summaries.map((summary) => {
                                     return {
                                         channel_id: summary.dataValues.channel_id,
-                                        summaries: JSON.parse(summary.dataValues.summary),
+                                        summaries: summary.dataValues.summaries,
                                         from_timestamp: summary.dataValues.from_timestamp,
                                         to_timestamp: summary.dataValues.to_timestamp,
                                     }

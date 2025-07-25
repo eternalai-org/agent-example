@@ -27,10 +27,12 @@ import { sendPrompt } from './prompt';
     //     }
     // }
 
-    const page = await newChromiumPage()
+    // const page = await newChromiumPage()
 
-    const servers = await getAllServers(page)
-    console.log('servers', servers)
+    // const servers = await getAllServers(page)
+    // console.log('servers', servers)
+
+    await summarizeMessagesForAllChannels()
 
     // // await postMessageToChannel(page, process.env.DISCORD_SERVER_ID || '', process.env.DISCORD_CHANNEL_ID || '', 'Hello, world!')
 
