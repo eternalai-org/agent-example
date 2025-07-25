@@ -28,19 +28,21 @@ export const sendPrompt = async (
 
             You have access to the following tools:
 
-            1. getAllChannels: Lists all channels in the server with their IDs, names and types. Use this to identify specific channels.
+            1. getDiscordServers: Lists all servers with their IDs and names. Use this to identify specific servers.
 
-            2. getDiscordSummaries: Retrieves topic-based summaries of channel messages, including:
+            2. getAllChannels: Lists all channels in the server with their IDs, names and types. Use this to identify specific channels.
+
+            3. getDiscordSummaries: Retrieves topic-based summaries of channel messages, including:
                - Number of messages per topic
                - Number of users discussing each topic
                - Time range of messages
                - Can analyze specific channels or all channels
 
-            3. getRecentMessages: Retrieves recent messages from a channel, including:
+            4. getRecentMessages: Retrieves recent messages from a channel, including:
                 - Channel ID
                 - List of messages (id, content, author, timestamp)
 
-            4. postMessageToChannel: Posts a message to a channel, including:
+            5. postMessageToChannel: Posts a message to a channel, including:
                 - Channel ID
                 - Message content
 
