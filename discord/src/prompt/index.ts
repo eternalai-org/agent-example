@@ -279,7 +279,7 @@ export const sendPrompt = async (
                                 summaries: summaries.map((summary) => {
                                     return {
                                         channel_id: summary.dataValues.channel_id,
-                                        summaries: summary.dataValues.summaries,
+                                        summaries: JSON.parse(summary.dataValues.summaries),
                                         from_timestamp: summary.dataValues.from_timestamp,
                                         to_timestamp: summary.dataValues.to_timestamp,
                                     }
