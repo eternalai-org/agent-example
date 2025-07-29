@@ -75,14 +75,12 @@ export const sendPrompt = async (
                                 throw new Error('Page is not initialized');
                             }
                             await checkAuthorizedToDiscord(page)
-                            if (await needSyncDiscordServers()) {
-                                if (callAgentFunc) {
-                                    await callAgentFunc(`
+                            if (callAgentFunc) {
+                                await callAgentFunc(`
                                         <action>Executing <b>syncing servers</b></action>
                                     `.trim())
-                                }
-                                await syncDiscordServers(page)
                             }
+                            await syncDiscordServers(page)
                             const servers = await DiscordServers.findAll({
                                 where: {
                                 },
@@ -113,14 +111,12 @@ export const sendPrompt = async (
                                 throw new Error('Page is not initialized');
                             }
                             await checkAuthorizedToDiscord(page)
-                            if (await needSyncDiscordChannels(args.server_id)) {
-                                if (callAgentFunc) {
-                                    await callAgentFunc(`
+                            if (callAgentFunc) {
+                                await callAgentFunc(`
                                         <action>Executing <b>syncing channels</b></action>
                                     `.trim())
-                                }
-                                await syncDiscordChannelsForServer(page, args.server_id)
                             }
+                            await syncDiscordChannelsForServer(page, args.server_id)
                             const channels = await DiscordChannels.findAll({
                                 where: {
                                     server_id: args.server_id,
@@ -238,7 +234,7 @@ export const sendPrompt = async (
                             if (!args.server_id) {
                                 throw new Error('server_id is required');
                             }
-                            if (!args.channel_id && (await needSyncDiscordChannels(args.server_id))) {
+                            if (!args.channel_id) {
                                 if (callAgentFunc) {
                                     await callAgentFunc(`
                                         <action>Executing <b>syncing channels</b></action>
