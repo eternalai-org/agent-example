@@ -156,6 +156,7 @@ export const syncDiscordServers = async (page: Page) => {
             console.log(`Synced servers`)
         } catch (error) {
             console.log(`Cannot sync servers: ${error}`);
+            throw error;
         }
     })
 }
@@ -189,6 +190,7 @@ export const syncDiscordChannelsForServer = async (page: Page, serverId: string)
             console.log(`Synced channels for server ${serverId}`)
         } catch (error) {
             console.log(`Cannot sync channels for server ${serverId}: ${error}`);
+            throw error;
         }
     })
 }
@@ -272,6 +274,7 @@ export const syncDiscordMessagesForChannel = async (page: Page, serverId: string
             console.log(`Synced messages for channel ${channelId}`)
         } catch (error) {
             console.log(`Cannot sync messages for channel ${channelId}: ${error}`);
+            throw error;
         }
     })
 }
@@ -289,10 +292,7 @@ export const syncDiscordMessagesForServer = async (page: Page, serverId: string,
             where: whereMap,
         })
         for (const channel of channels) {
-            try {
-                await syncDiscordMessagesForChannel(page, serverId, channel.dataValues.id)
-            } catch (error) {
-            }
+            await syncDiscordMessagesForChannel(page, serverId, channel.dataValues.id)
         }
         console.log(`Synced messages for server ${serverId}`)
     } catch (error) {
@@ -447,11 +447,13 @@ export const summarizeMessagesForAllChannels = async (serverId?: string, channel
                 console.log(`Summarized channel ${channel.dataValues.name}`);
             } catch (error) {
                 console.log(`Cannot summarize channel ${channel.dataValues.name}: ${error}`);
+                throw error;
             }
         }
         console.log('Summarized all channels for server', serverId);
     } catch (error) {
         console.log(`Cannot summarize all channels: ${error}`);
+        throw error;
     }
 }
 
