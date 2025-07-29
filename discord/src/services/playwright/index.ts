@@ -14,7 +14,7 @@ export const gotoLoginPageAndWait = async (page: Page) => {
 
 export const checkAuthorizedToDiscord = async (page: Page) => {
     try {
-        await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 10 * 1000 });
+        await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 1 * 1000 });
     } catch (error) {
         try {
             await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
