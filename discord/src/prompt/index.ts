@@ -233,6 +233,14 @@ export const sendPrompt = async (
                             if (!args.server_id) {
                                 throw new Error('server_id is required');
                             }
+                            if (!args.channel_id && (await needSyncDiscordChannels(args.server_id))) {
+                                if (callAgentFunc) {
+                                    await callAgentFunc(`
+                                        <action>Executing <b>syncing channels</b></action>
+                                    `.trim())
+                                }
+                                await syncDiscordChannelsForServer(page, args.server_id)
+                            }
                             if (callAgentFunc) {
                                 await callAgentFunc(`
                                     <action>Executing <b>syncing messages</b></action>
