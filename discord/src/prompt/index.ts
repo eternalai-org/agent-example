@@ -285,9 +285,15 @@ export const sendPrompt = async (
                                     }
                                 }),
                                 summaries: summaries.map((summary) => {
+                                    var summaries: any = []
+                                    try {
+                                        summaries = JSON.parse(summary.dataValues.summary)
+                                    } catch (error) {
+                                        summaries = summary.dataValues.summary
+                                    }
                                     return {
                                         channel_id: summary.dataValues.channel_id,
-                                        summaries: JSON.parse(summary.dataValues.summaries),
+                                        summaries: summaries,
                                         from_timestamp: summary.dataValues.from_timestamp,
                                         to_timestamp: summary.dataValues.to_timestamp,
                                     }
