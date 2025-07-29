@@ -66,6 +66,9 @@ export const sendPrompt = async (
 
             Note: 
             - If you are not authorized to Discord, you will need to login to Discord only via the browser.
+            - You should always include complete server information (id, name) and channel information (id, name) in all responses.
+            - Format server info as: Server: {id} - {name}
+            - Format channel info as: Channel: {id} - {name} ({type})
             `.trim(),
             tools: {
                 getDiscordServers: {
@@ -102,7 +105,7 @@ export const sendPrompt = async (
                 getAllChannels: {
                     description: 'Get all channels of the server. This is a list of all channels in the server (id, name). You can use this to get the channel id to get the summaries of the channels, recent messages or post messages to the channels.',
                     parameters: z.object({
-                        server_id: z.string().optional().describe('The server id to get the channels for. The server id is the id of the server in the Discord.'),
+                        server_id: z.string().optional().describe('The server id to get the channels for. You can use getDiscordServers to get the server id.'),
                     }),
                     execute: async (args) => {
                         console.log('getAllChannels', args)
@@ -139,7 +142,7 @@ export const sendPrompt = async (
                 getRecentMessages: {
                     description: 'Get recent messages from the channel. This is a list of recent messages from the channel (id, content, author, timestamp).',
                     parameters: z.object({
-                        channel_id: z.string().describe('The channel id to get the recent messages for. The channel id is the id of the channel in the server.')
+                        channel_id: z.string().describe('The channel id to get the recent messages for. You can use getAllChannels to get the channel id.')
                     }),
                     execute: async (args: { channel_id: string }) => {
                         console.log('getRecentMessages', args)
@@ -191,7 +194,7 @@ export const sendPrompt = async (
                 postMessageToChannel: {
                     description: 'Post a message to the channel. This is a message to the channel (content).',
                     parameters: z.object({
-                        channel_id: z.string().describe('The channel id to post the message to. The channel id is the id of the channel in the server.'),
+                        channel_id: z.string().describe('The channel id to post the message to. You can use getAllChannels to get the channel id.'),
                         message: z.string().describe('The message to post to the channel.'),
                     }),
                     execute: async (args: { channel_id: string, message: string }) => {
@@ -224,8 +227,8 @@ export const sendPrompt = async (
                 getDiscordSummaries: {
                     description: 'Get summaries of channel messages grouped by topic and time range. Each summary includes the number of messages and users discussing each topic.',
                     parameters: z.object({
-                        server_id: z.string().describe('The server id to get the summaries for. The server id is the id of the server in the Discord.'),
-                        channel_id: z.string().optional().describe('The channel id to get the summaries for. The channel id is the id of the channel in the server. If not provided, all channels will be returned.'),
+                        server_id: z.string().describe('The server id to get the summaries for. You can use getDiscordServers to get the server id.'),
+                        channel_id: z.string().optional().describe('The channel id to get the summaries for. You can use getAllChannels to get the channel id. If not provided, all channels will be returned.'),
                     }),
                     execute: async (args: { server_id: string, channel_id?: string }) => {
                         console.log('getDiscordSummaries', args)
