@@ -24,7 +24,7 @@ export const sendPrompt = async (
         const { textStream } = streamText({
             model: clientOpenAI(process.env.LLM_MODEL_ID || 'gpt-4o-mini'),
             maxSteps: 25,
-            system: `You are a Discord server analysis assistant. Your role is to help users analyze and understand conversations in their Discord servers.
+            system: `You are a Discord server analysis assistant. Your role is to help users analyze and understand conversations in their Discord servers. You use chromium browser to login to Discord and get the data.
 
             Available tools:
 
@@ -63,6 +63,9 @@ export const sendPrompt = async (
                - Notable trends or changes in activity
 
             Remember to maintain a helpful, analytical tone and focus on delivering meaningful insights about server activity.
+
+            Note: 
+            - If you are not authorized to Discord, you will need to login to Discord only via the browser.
             `.trim(),
             tools: {
                 getDiscordServers: {

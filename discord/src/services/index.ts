@@ -19,21 +19,23 @@ export const newChromiumPage = async () => {
         headless: false,
     }
     const browser = await chromium.launchPersistentContext(`${process.env.STORAGE_PATH}/chromium`, opts);
-    const page = await browser.newPage()
-    await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
-    while (true) {
-        try {
-            await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 10 * 1000 });
-            break
-        } catch (error) {
+    const page = await browser.newPage();
+    (async () => {
+        await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
+        while (true) {
             try {
-                await page.waitForSelector('[name="email"]', { timeout: 10 * 1000 });
+                await page.waitForSelector('rect[mask="url(#svg-mask-status-online)"]', { timeout: 10 * 1000 });
                 break
             } catch (error) {
-                await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
+                try {
+                    await page.waitForSelector('[name="email"]', { timeout: 10 * 1000 });
+                    break
+                } catch (error) {
+                    await page.goto('https://discord.com/login', { waitUntil: 'networkidle' });
+                }
             }
         }
-    }
+    })();
     return page
 }
 
