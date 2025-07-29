@@ -5,7 +5,7 @@ import { DiscordChannels, DiscordMessages, DiscordServers, DiscordSummaries } fr
 import { Op } from 'sequelize';
 import { needSyncDiscordChannels, needSyncDiscordServers, postDiscordMessage, summarizeMessagesForAllChannels, syncDiscordChannelsForServer, syncDiscordMessagesForChannel, syncDiscordMessagesForServer, syncDiscordServers } from '../services';
 import { Page } from 'playwright';
-import { getDiscordChannels, getDiscordMessagesForChannel } from '../services/playwright';
+import { checkAuthorizedToDiscord, getDiscordChannels, getDiscordMessagesForChannel } from '../services/playwright';
 import { SYNC_TIME_RANGE } from '../services/types';
 import { channel } from 'diagnostics_channel';
 
@@ -74,6 +74,7 @@ export const sendPrompt = async (
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
+                            await checkAuthorizedToDiscord(page)
                             if (await needSyncDiscordServers()) {
                                 if (callAgentFunc) {
                                     await callAgentFunc(`
@@ -111,6 +112,7 @@ export const sendPrompt = async (
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
+                            await checkAuthorizedToDiscord(page)
                             if (await needSyncDiscordChannels(args.server_id)) {
                                 if (callAgentFunc) {
                                     await callAgentFunc(`
@@ -146,6 +148,7 @@ export const sendPrompt = async (
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
+                            await checkAuthorizedToDiscord(page)
                             const channel = await DiscordChannels.findOne({
                                 where: {
                                     id: args.channel_id,
@@ -198,6 +201,7 @@ export const sendPrompt = async (
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
+                            await checkAuthorizedToDiscord(page)
                             if (callAgentFunc) {
                                 await callAgentFunc(`
                                     <action>Executing <b>posting message to channel</b></action>
@@ -230,6 +234,7 @@ export const sendPrompt = async (
                             if (!page) {
                                 throw new Error('Page is not initialized');
                             }
+                            await checkAuthorizedToDiscord(page)
                             if (!args.server_id) {
                                 throw new Error('server_id is required');
                             }

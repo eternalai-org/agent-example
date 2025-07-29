@@ -8,7 +8,7 @@ import { convertDateToSnowflakeID, removeThinking } from "./helpers";
 import { MessageData, SYNC_TIME_RANGE } from "./types";
 import { chatMessageWithLLM } from "./llm";
 import { Mutex } from "async-mutex";
-import { getAllServers, getDiscordChannels, getDiscordMessagesForChannel, postMessageToChannel } from "./playwright";
+import { checkAuthorizedToDiscord, getAllServers, getDiscordChannels, getDiscordMessagesForChannel, postMessageToChannel } from "./playwright";
 import { chromium, LaunchOptions, Page } from "playwright";
 
 const discordMtx = new Mutex()
@@ -113,6 +113,16 @@ export const newChromiumPage = async () => {
 //     }
 //     console.log(`Synced messages for server ${serverId}`);
 // }
+
+export const checkDiscordAuthorized = async (page: Page) => {
+    try {
+        await discordMtx.runExclusive(async () => {
+            await checkAuthorizedToDiscord(page)
+        })
+    } catch (error) {
+        throw error
+    }
+}
 
 export const postDiscordMessage = async (page: Page, serverId: string, channelId: string, message: string) => {
     await discordMtx.runExclusive(async () => {
